@@ -3,9 +3,6 @@
     <!-- Заголовок страницы -->
     <div class="row q-mb-md">
       <div class="col">
-        <div class="text-h4 text-weight-bold text-primary q-mb-sm">
-          Все новости
-        </div>
         <div class="text-subtitle1 text-grey-7">
           Просматривайте все новости с возможностью фильтрации и сортировки
         </div>
@@ -15,9 +12,9 @@
     <!-- Фильтры и поиск -->
     <q-card class="q-mb-md modern-card glass-effect">
       <q-card-section>
-        <div class="row q-gutter-md">
+        <div class="row q-gutter-sm">
           <!-- Поиск -->
-          <div class="col-12 col-md-4">
+          <div class="col-12 col-sm-6 col-md-3 col-lg-3">
             <q-input
               v-model="searchQuery"
               placeholder="Поиск новостей..."
@@ -43,65 +40,44 @@
           </div>
 
           <!-- Фильтр по категориям -->
-          <div class="col-12 col-md-3">
+          <div class="col-12 col-sm-6 col-md-3 col-lg-3">
             <q-select
-              v-model="selectedCategory"
+              v-model="selectedCategories"
               :options="categoryOptions"
-              label="Категория"
+              label="Категории"
               dense
               outlined
+              multiple
+              use-chips
               clearable
               class="modern-input"
               emit-value
               map-options
               @update:model-value="onFilterChange"
+              @clear="onCategoriesClear"
             />
           </div>
 
           <!-- Фильтр по странам -->
-          <div class="col-12 col-md-3">
+          <div class="col-12 col-sm-6 col-md-3 col-lg-3">
             <q-select
-              v-model="selectedCountry"
+              v-model="selectedCountries"
               :options="countryOptions"
-              label="Страна"
+              label="Страны"
               dense
               outlined
+              multiple
+              use-chips
               clearable
               class="modern-input"
               emit-value
               map-options
               @update:model-value="onFilterChange"
+              @clear="onCountriesClear"
             />
           </div>
 
-          <!-- Сортировка -->
-          <div class="col-12 col-md-2">
-            <q-select
-              v-model="sortBy"
-              :options="sortOptions"
-              label="Сортировка"
-              dense
-              outlined
-              class="modern-input"
-              @update:model-value="onSortChange"
-              emit-value
-              map-options
-            />
-          </div>
-        </div>
 
-        <!-- Кнопка очистки фильтров -->
-        <div class="row q-mt-md" v-if="hasActiveFilters">
-          <div class="col">
-            <q-btn
-              flat
-              dense
-              icon="clear_all"
-              label="Очистить все фильтры"
-              color="secondary"
-              @click="clearAllFilters"
-            />
-          </div>
         </div>
       </q-card-section>
     </q-card>
@@ -114,6 +90,38 @@
             Найдено: <span class="text-primary text-weight-medium">{{ totalNews }} новостей</span>
             <span v-if="allNews.length < totalNews" class="text-grey-6 q-ml-sm">
               (показано: {{ allNews.length }})
+            </span>
+            <!-- Иконка сортировки и кнопка очистки фильтров -->
+            <span class="q-ml-md">
+              <q-btn
+                flat
+                round
+                dense
+                :icon="sortOrder === 'desc' ? 'keyboard_arrow_down' : 'keyboard_arrow_up'"
+                :color="sortOrder === 'desc' ? 'primary' : 'grey-6'"
+                @click="toggleSortOrder"
+                class="sort-btn q-mr-sm"
+                size="sm"
+              >
+                <q-tooltip>
+                  {{ sortOrder === 'desc' ? 'Сначала новые' : 'Сначала старые' }}
+                </q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="hasActiveFilters"
+                flat
+                dense
+                icon="clear_all"
+                label="Очистить все фильтры"
+                color="secondary"
+                @click="clearAllFilters"
+                class="sort-btn"
+                size="sm"
+              >
+                <q-tooltip>
+                  Очистить все фильтры
+                </q-tooltip>
+              </q-btn>
             </span>
           </div>
         </div>
@@ -190,11 +198,12 @@
                           <q-chip
                             v-if="news.category_name"
                             :color="news.category_color || 'primary'"
+                            :style="news.category_color ? `background-color: ${news.category_color} !important; border-color: ${news.category_color} !important;` : ''"
                             text-color="white"
                             dense
                             class="q-ml-sm"
                           >
-                            <q-icon :name="news.category_icon || 'info'" class="q-mr-xs" />
+                            <q-icon :name="getCategoryIcon(news.category_icon)" class="q-mr-xs" />
                             {{ news.category_name }}
                           </q-chip>
                         </div>
@@ -314,11 +323,12 @@
                     <q-chip
                       v-if="selectedNews.category && selectedNews.category.name"
                       :color="selectedNews.category.color || 'grey'"
+                      :style="selectedNews.category.color ? `background-color: ${selectedNews.category.color} !important; border-color: ${selectedNews.category.color} !important;` : ''"
                       text-color="white"
                       dense
                       class="q-ml-sm"
                     >
-                      <q-icon :name="selectedNews.category.icon || 'info'" class="q-mr-xs" />
+                      <q-icon :name="getCategoryIcon(selectedNews.category.icon)" class="q-mr-xs" />
                       {{ selectedNews.category.name }}
                     </q-chip>
                   </div>
@@ -369,22 +379,22 @@ import api from '../services/api'
 
 // Реактивные данные
 const searchQuery = ref('')
-const selectedCategory = ref(null)
-const selectedCountry = ref(null)
-const sortBy = ref('date_desc')
+const selectedCategories = ref([])
+const selectedCountries = ref([])
+const sortOrder = ref('desc')
 const showNewsDialog = ref(false)
 const selectedNews = ref(null)
 const lastUpdate = ref('')
 const allNews = ref([])
 const loading = ref(false)
 
+// Инициализация с пустыми массивами для избежания null значений
+selectedCategories.value = []
+selectedCountries.value = []
+
 // Опции для селектов
 const categoryOptions = ref([])
 const countryOptions = ref([])
-const sortOptions = [
-  { label: 'Сначала новые', value: 'date_desc' },
-  { label: 'Сначала старые', value: 'date_asc' }
-]
 
 // Вычисляемые свойства
 const filteredNews = computed(() => {
@@ -392,13 +402,10 @@ const filteredNews = computed(() => {
   let news = Array.isArray(allNews.value) ? allNews.value : []
   
   // Сортировка (фильтрация уже делается на сервере)
-  switch (sortBy.value) {
-    case 'date_desc':
-      news.sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
-      break
-    case 'date_asc':
-      news.sort((a, b) => new Date(a.published_at) - new Date(b.published_at))
-      break
+  if (sortOrder.value === 'desc') {
+    news.sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+  } else {
+    news.sort((a, b) => new Date(a.published_at) - new Date(b.published_at))
   }
   
   return news
@@ -409,7 +416,9 @@ const paginatedNews = computed(() => {
 })
 
 const hasActiveFilters = computed(() => {
-  return searchQuery.value || selectedCategory.value || selectedCountry.value
+  return searchQuery.value || 
+         (selectedCategories.value && selectedCategories.value.length > 0) || 
+         (selectedCountries.value && selectedCountries.value.length > 0)
 })
 
 // Методы
@@ -441,11 +450,11 @@ const loadNews = async (page = 1, reset = false) => {
     if (searchQuery.value) {
       params.keywords = searchQuery.value
     }
-    if (selectedCategory.value) {
-      params.categories = selectedCategory.value.toString()
+    if (selectedCategories.value && selectedCategories.value.length > 0) {
+      params.categories = selectedCategories.value.join(',')
     }
-    if (selectedCountry.value) {
-      params.countries = selectedCountry.value.toString()
+    if (selectedCountries.value && selectedCountries.value.length > 0) {
+      params.countries = selectedCountries.value.join(',')
     }
     
     const response = await api.get('/news', { params })
@@ -481,7 +490,7 @@ const loadNews = async (page = 1, reset = false) => {
     console.log(`Загружено ${newNews.length} новостей, всего: ${allNews.value.length}`)
     console.log('Total news from API:', totalNews.value)
     console.log('Первая новость:', newNews[0])
-    console.log('Фильтры:', { search: searchQuery.value, category: selectedCategory.value, country: selectedCountry.value })
+    console.log('Фильтры:', { search: searchQuery.value, categories: selectedCategories.value, countries: selectedCountries.value })
     console.log('API параметры:', params)
     
     if (reset) {
@@ -547,9 +556,6 @@ const onFilterChange = async () => {
 }
 
 
-const onSortChange = () => {
-  // Сортировка будет выполняться через computed свойство
-}
 
 const clearSearch = () => {
   searchQuery.value = ''
@@ -557,9 +563,25 @@ const clearSearch = () => {
 
 const clearAllFilters = () => {
   searchQuery.value = ''
-  selectedCategory.value = null
-  selectedCountry.value = null
-  sortBy.value = 'date_desc'
+  selectedCategories.value = []
+  selectedCountries.value = []
+  sortOrder.value = 'desc'
+}
+
+// Обработчики для очистки отдельных фильтров
+const onCategoriesClear = () => {
+  selectedCategories.value = []
+  onFilterChange()
+}
+
+const onCountriesClear = () => {
+  selectedCountries.value = []
+  onFilterChange()
+}
+
+const toggleSortOrder = async () => {
+  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  await loadNews(1, true)
 }
 
 const loadMoreNews = async (index, done) => {
@@ -705,6 +727,21 @@ const isNewNews = (news) => {
   return diffInHours < 24
 }
 
+// Функция для получения правильной иконки категории
+const getCategoryIcon = (iconName) => {
+  const iconMap = {
+    'politics': 'account_balance',
+    'trending-up': 'trending_up',
+    'sports': 'sports_soccer',
+    'cpu': 'computer',
+    'palette': 'palette',
+    'flask': 'science',
+    'users': 'group',
+    'alert-triangle': 'warning'
+  }
+  return iconMap[iconName] || 'info'
+}
+
 // Жизненный цикл
 onMounted(() => {
   loadNews(1, true)
@@ -811,6 +848,48 @@ onMounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.sort-btn {
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  
+  &:hover {
+    transform: scale(1.1);
+    border-color: var(--q-primary);
+  }
+  
+  &.q-btn--dense {
+    min-height: 24px;
+    padding: 4px;
+  }
+}
+
+// Стили для множественного выбора
+.q-select--multiple {
+  .q-field__native {
+    min-height: 40px;
+  }
+  
+  .q-chip {
+    margin: 2px;
+  }
+}
+
+// Стили для опций в выпадающем списке
+.q-item {
+  &.q-item--clickable {
+    &:hover {
+      background-color: var(--q-primary-light);
+    }
+  }
+}
+
+// Стили для кнопки очистки фильтров
+.q-btn {
+  &.q-btn--disabled {
+    opacity: 0.5;
   }
 }
 </style>
