@@ -58,6 +58,7 @@ func main() {
 		newsRepo,
 		parsingLogRepo,
 		&cfg.Parsing,
+		cfg,
 		logger,
 	)
 
@@ -95,12 +96,12 @@ func main() {
 	if cfg.Health.Port != cfg.Server.Port {
 		healthMux := http.NewServeMux()
 		healthMux.HandleFunc(cfg.Health.Path, handler.HealthCheck)
-		
+
 		healthServer = &http.Server{
 			Addr:    cfg.GetHealthAddr(),
 			Handler: healthMux,
 		}
-		
+
 		go func() {
 			logger.WithField("addr", healthServer.Addr).Info("Starting health check server")
 			if err := healthServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -121,12 +122,12 @@ func main() {
 			fmt.Fprintf(w, "# TYPE news_parsing_service_info gauge\n")
 			fmt.Fprintf(w, "news_parsing_service_info{version=\"1.0.0\"} 1\n")
 		})
-		
+
 		metricsServer = &http.Server{
 			Addr:    cfg.GetMetricsAddr(),
 			Handler: metricsMux,
 		}
-		
+
 		go func() {
 			logger.WithField("addr", metricsServer.Addr).Info("Starting metrics server")
 			if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

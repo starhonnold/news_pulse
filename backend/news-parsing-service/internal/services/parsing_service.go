@@ -19,20 +19,20 @@ import (
 
 // ParsingService представляет сервис парсинга новостей
 type ParsingService struct {
-	rssParser          *RSSParser
-	newsSourceRepo     *repository.NewsSourceRepository
-	newsRepo           *repository.NewsRepository
-	parsingLogRepo     *repository.ParsingLogRepository
-	config             *config.ParsingConfig
-	logger             *logrus.Logger
-	cron               *cron.Cron
-	isRunning          bool
-	mu                 sync.RWMutex
-	semaphore          chan struct{}
-	categoryClassifier *CategoryClassifier
-	aiClassifier       *AIClassifier
-	countryDetector    *CountryDetector
-	contentExtractor   *ContentExtractor
+	rssParser                *RSSParser
+	newsSourceRepo           *repository.NewsSourceRepository
+	newsRepo                 *repository.NewsRepository
+	parsingLogRepo           *repository.ParsingLogRepository
+	config                   *config.ParsingConfig
+	logger                   *logrus.Logger
+	cron                     *cron.Cron
+	isRunning                bool
+	mu                       sync.RWMutex
+	semaphore                chan struct{}
+	countryDetector          *CountryDetector
+	contentExtractor         *ContentExtractor
+	deepSeekContentExtractor *DeepSeekContentExtractor
+	deepSeekNewsClassifier   *DeepSeekNewsClassifier
 }
 
 // NewParsingService создает новый сервис парсинга
@@ -41,20 +41,15 @@ func NewParsingService(
 	newsSourceRepo *repository.NewsSourceRepository,
 	newsRepo *repository.NewsRepository,
 	parsingLogRepo *repository.ParsingLogRepository,
-	config *config.ParsingConfig,
+	parsingConfig *config.ParsingConfig,
+	fullConfig *config.Config,
 	logger *logrus.Logger,
 ) *ParsingService {
 	// Создаем семафор для ограничения количества одновременных парсингов
-	semaphore := make(chan struct{}, config.MaxConcurrentParsers)
+	semaphore := make(chan struct{}, parsingConfig.MaxConcurrentParsers)
 
 	// Создаем cron для планирования задач
 	cronScheduler := cron.New(cron.WithSeconds())
-
-	// Создаем классификатор категорий
-	classifier := NewCategoryClassifier(logger)
-
-	// Создаем AI-классификатор (передаем nil, так как API ключ захардкожен)
-	aiClassifier := NewAIClassifier(nil, logger)
 
 	// Создаем детектор стран
 	countryDetector := NewCountryDetector(logger)
@@ -62,19 +57,25 @@ func NewParsingService(
 	// Создаем извлекатель контента (упрощенный)
 	contentExtractor := NewContentExtractor(logger, nil)
 
+	// Создаем DeepSeek-извлекатель контента
+	deepSeekContentExtractor := NewDeepSeekContentExtractor(fullConfig.DeepSeekAPIKey, logger)
+
+	// Создаем DeepSeek-классификатор новостей
+	deepSeekNewsClassifier := NewDeepSeekNewsClassifier(fullConfig.DeepSeekAPIKey, logger)
+
 	return &ParsingService{
-		rssParser:          rssParser,
-		newsSourceRepo:     newsSourceRepo,
-		newsRepo:           newsRepo,
-		parsingLogRepo:     parsingLogRepo,
-		config:             config,
-		logger:             logger,
-		cron:               cronScheduler,
-		semaphore:          semaphore,
-		categoryClassifier: classifier,
-		aiClassifier:       aiClassifier,
-		countryDetector:    countryDetector,
-		contentExtractor:   contentExtractor,
+		rssParser:                rssParser,
+		newsSourceRepo:           newsSourceRepo,
+		newsRepo:                 newsRepo,
+		parsingLogRepo:           parsingLogRepo,
+		config:                   parsingConfig,
+		logger:                   logger,
+		cron:                     cronScheduler,
+		semaphore:                semaphore,
+		countryDetector:          countryDetector,
+		contentExtractor:         contentExtractor,
+		deepSeekContentExtractor: deepSeekContentExtractor,
+		deepSeekNewsClassifier:   deepSeekNewsClassifier,
 	}
 }
 
@@ -247,9 +248,10 @@ func (s *ParsingService) parseSource(ctx context.Context, source models.NewsSour
 // processItems обрабатывает элементы из RSS ленты и конвертирует их в новости
 func (s *ParsingService) processItems(ctx context.Context, items []models.ParsedFeedItem, source models.NewsSource) ([]models.News, error) {
 	var newsList []models.News
-	var itemsForAIClassification []NewsItem
+	var itemsForDeepSeekClassification []DeepSeekNewsItem
+	var itemsForContentExtraction []DeepSeekContentExtractionItem
 
-	// Сначала обрабатываем все элементы и собираем те, которые нуждаются в AI-классификации
+	// Сначала обрабатываем все элементы и собираем те, которые нуждаются в обработке
 	for i, item := range items {
 		// Проверяем, существует ли уже такая новость
 		if s.config.EnableDeduplication {
@@ -263,44 +265,77 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Все новости классифицируем через AI для точности
-		itemsForAIClassification = append(itemsForAIClassification, NewsItem{
+		// Собираем элементы для DeepSeek-классификации
+		itemsForDeepSeekClassification = append(itemsForDeepSeekClassification, DeepSeekNewsItem{
+			Index:       i,
 			Title:       item.Title,
 			Description: item.Description,
 			Content:     item.Content,
-			Index:       i,
+			Categories:  item.Categories,
 		})
+
+		// Собираем элементы для извлечения полного контента через DeepSeek
+		if s.deepSeekContentExtractor.IsValidURL(item.Link) {
+			itemsForContentExtraction = append(itemsForContentExtraction, DeepSeekContentExtractionItem{
+				URL:   item.Link,
+				Index: i,
+			})
+		}
 	}
 
-	// Выполняем batch-классификацию для элементов, которые нуждаются в AI-классификации
-	aiResults := make(map[int]int)
-	if len(itemsForAIClassification) > 0 {
-		s.logger.WithField("items_count", len(itemsForAIClassification)).Info("Performing batch AI classification")
+	// Выполняем batch-классификацию для элементов через DeepSeek
+	deepSeekResults := make(map[int]int)
+	if len(itemsForDeepSeekClassification) > 0 {
+		s.logger.WithField("items_count", len(itemsForDeepSeekClassification)).Info("Performing batch DeepSeek classification")
 
-		// Ограничиваем количество элементов для batch-классификации (максимум 50)
-		batchSize := 50
-		if len(itemsForAIClassification) > batchSize {
-			itemsForAIClassification = itemsForAIClassification[:batchSize]
+		// Ограничиваем количество элементов для batch-классификации (максимум 10)
+		batchSize := 10
+		if len(itemsForDeepSeekClassification) > batchSize {
+			itemsForDeepSeekClassification = itemsForDeepSeekClassification[:batchSize]
 		}
 
-		results, err := s.aiClassifier.ClassifyNewsBatch(ctx, itemsForAIClassification)
+		results, err := s.deepSeekNewsClassifier.ClassifyNewsBatch(ctx, itemsForDeepSeekClassification)
 		if err != nil {
-			s.logger.WithError(err).Warn("Batch AI classification failed")
+			s.logger.WithError(err).Warn("Batch DeepSeek classification failed")
 		} else {
-			// Создаем карту результатов AI-классификации
+			// Создаем карту результатов DeepSeek-классификации
 			for _, result := range results {
 				if result.Error == nil {
-					aiResults[result.Index] = result.CategoryID
+					deepSeekResults[result.Index] = result.CategoryID
 					s.logger.WithFields(logrus.Fields{
 						"index":       result.Index,
 						"category_id": result.CategoryID,
-					}).Info("AI classified news category")
+						"confidence":  result.Confidence,
+					}).Info("DeepSeek classified news category")
 				}
 			}
 		}
 	}
 
-	// Теперь создаем новости с правильными категориями
+	// Выполняем batch-извлечение контента через AI
+	contentResults := make(map[int]DeepSeekContentExtractionResult)
+	if len(itemsForContentExtraction) > 0 {
+		s.logger.WithField("items_count", len(itemsForContentExtraction)).Info("Performing batch AI content extraction")
+
+		results, err := s.deepSeekContentExtractor.ExtractContentBatch(ctx, itemsForContentExtraction)
+		if err != nil {
+			s.logger.WithError(err).Warn("Batch AI content extraction failed")
+		} else {
+			// Создаем карту результатов извлечения контента
+			for _, result := range results {
+				if result.Error == nil {
+					contentResults[result.Index] = result
+					s.logger.WithFields(logrus.Fields{
+						"index":          result.Index,
+						"title":          truncateForLog(result.Title, 50),
+						"content_length": len(result.Content),
+					}).Info("DeepSeek extracted content")
+				}
+			}
+		}
+	}
+
+	// Теперь создаем новости с правильными категориями и извлеченным контентом
 	for i, item := range items {
 		// Проверяем, существует ли уже такая новость
 		if s.config.EnableDeduplication {
@@ -314,54 +349,69 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Используем результат AI-классификации
+		// Используем результат DeepSeek-классификации
 		var categoryID *int
-		if aiCategoryID, exists := aiResults[i]; exists {
-			categoryID = &aiCategoryID
+		if deepSeekCategoryID, exists := deepSeekResults[i]; exists {
+			categoryID = &deepSeekCategoryID
 		} else {
-			// Если AI-классификация не сработала, используем категорию по умолчанию
-			defaultCategory := 7 // "Из жизни"
+			// Если DeepSeek-классификация не сработала, используем категорию по умолчанию
+			defaultCategory := models.CategoryPolitics // "Политика" как fallback
 			categoryID = &defaultCategory
 		}
 
-		// Сначала пробуем извлечь полный контент с помощью AI
+		// Определяем полный контент новости
 		fullContent := item.Content
+		contentSource := "rss_content"
 
-		// Если контента нет в RSS, пробуем извлечь с веб-страницы (без AI для экономии API запросов)
-		if fullContent == "" && s.contentExtractor.IsValidURL(item.Link) {
-			if extractedContent, err := s.contentExtractor.ExtractFullContent(ctx, item.Link); err == nil && extractedContent != "" {
-				fullContent = extractedContent
-				s.logger.WithFields(logrus.Fields{
-					"url":            item.Link,
-					"content_length": len(extractedContent),
-					"source":         "web",
-				}).Debug("Extracted full content from web page")
-			} else {
-				s.logger.WithFields(logrus.Fields{
-					"url":    item.Link,
-					"error":  err,
-					"source": "web",
-				}).Debug("Failed to extract full content from web page")
+		// Сначала пробуем использовать контент, извлеченный через AI
+		if contentResult, exists := contentResults[i]; exists {
+			fullContent = contentResult.Content
+			contentSource = "ai_extraction"
+			s.logger.WithFields(logrus.Fields{
+				"url":            item.Link,
+				"content_length": len(fullContent),
+				"source":         contentSource,
+			}).Debug("Using AI extracted content")
+		} else if fullContent == "" {
+			// Если AI-извлечение не удалось, пробуем извлечь с веб-страницы (fallback)
+			if s.contentExtractor.IsValidURL(item.Link) {
+				if extractedContent, err := s.contentExtractor.ExtractFullContent(ctx, item.Link); err == nil && extractedContent != "" {
+					fullContent = extractedContent
+					contentSource = "web_extraction"
+					s.logger.WithFields(logrus.Fields{
+						"url":            item.Link,
+						"content_length": len(extractedContent),
+						"source":         contentSource,
+					}).Debug("Extracted full content from web page")
+				} else {
+					s.logger.WithFields(logrus.Fields{
+						"url":    item.Link,
+						"error":  err,
+						"source": "web_extraction",
+					}).Debug("Failed to extract full content from web page")
+				}
 			}
 		}
 
 		// Если не удалось извлечь с веб-страницы, используем описание из RSS
 		if fullContent == "" {
 			fullContent = item.Description
+			contentSource = "rss_description"
 			s.logger.WithFields(logrus.Fields{
 				"url":            item.Link,
 				"content_length": len(fullContent),
-				"source":         "rss_description",
+				"source":         contentSource,
 			}).Debug("Using description from RSS feed")
 		}
 
 		// Если и описания нет, используем контент из RSS
 		if fullContent == "" {
 			fullContent = s.contentExtractor.ExtractContentFromRSS(item.Description, item.Content)
+			contentSource = "rss_content"
 			s.logger.WithFields(logrus.Fields{
 				"url":            item.Link,
 				"content_length": len(fullContent),
-				"source":         "rss_content",
+				"source":         contentSource,
 			}).Debug("Using content from RSS feed")
 		}
 
@@ -392,6 +442,7 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			"category_id":      categoryID,
 			"detected_country": detectedCountry,
 			"content_length":   len(fullContent),
+			"content_source":   contentSource,
 			"source_id":        source.ID,
 		}).Debug("Processed news item")
 

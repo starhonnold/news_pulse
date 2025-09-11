@@ -87,11 +87,12 @@
                         v-for="category in pulse.categories.slice(0, 3)"
                       :key="category.category_id"
                       :color="category.category_color || 'grey'"
+                      :style="category.category_color ? `background-color: ${category.category_color} !important; border-color: ${category.category_color} !important;` : ''"
                       text-color="white"
                       dense
                       class="q-mr-xs"
                     >
-                      <q-icon :name="category.category_icon || 'info'" class="q-mr-xs" />
+                      <q-icon :name="getCategoryIcon(category.category_icon)" class="q-mr-xs" />
                       {{ category.category_name }}
                     </q-chip>
                     <span v-if="pulse.categories.length > 3" class="text-caption text-grey-6">
@@ -446,11 +447,12 @@
               :selected="newPulse.categories.includes(category.id)"
               @click="togglePulseCategory(category.id)"
               clickable
-              :color="newPulse.categories.includes(category.id) ? category.color : 'grey-3'"
+              :color="newPulse.categories.includes(category.id) ? 'primary' : 'grey-3'"
               :text-color="newPulse.categories.includes(category.id) ? 'white' : 'black'"
+              :style="newPulse.categories.includes(category.id) ? `background-color: ${category.color} !important; border-color: ${category.color} !important;` : ''"
               class="q-ma-xs"
             >
-              <q-icon :name="category.icon" class="q-mr-xs" />
+              <q-icon :name="getCategoryIcon(category.icon)" class="q-mr-xs" />
               {{ category.name }}
             </q-chip>
           </div>
@@ -631,6 +633,21 @@ function togglePulseCategory(categoryId) {
   } else {
     newPulse.value.categories.push(categoryId)
   }
+}
+
+// Функция для получения правильной иконки категории
+function getCategoryIcon(iconName) {
+  const iconMap = {
+    'politics': 'account_balance',
+    'trending-up': 'trending_up',
+    'sports': 'sports_soccer',
+    'cpu': 'computer',
+    'palette': 'palette',
+    'flask': 'science',
+    'users': 'group',
+    'alert-triangle': 'warning'
+  }
+  return iconMap[iconName] || 'info'
 }
 
 

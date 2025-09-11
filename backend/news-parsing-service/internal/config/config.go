@@ -10,14 +10,15 @@ import (
 
 // Config представляет конфигурацию сервиса парсинга новостей
 type Config struct {
-	Server        ServerConfig   `yaml:"server"`
-	Database      DatabaseConfig `yaml:"database"`
-	Parsing       ParsingConfig  `yaml:"parsing"`
-	Logging       LoggingConfig  `yaml:"logging"`
-	Health        HealthConfig   `yaml:"health"`
-	Metrics       MetricsConfig  `yaml:"metrics"`
-	OpenAIAPIKey  string         `yaml:"openai_api_key"`
-	Environment   string         `yaml:"-"`
+	Server         ServerConfig   `yaml:"server"`
+	Database       DatabaseConfig `yaml:"database"`
+	Parsing        ParsingConfig  `yaml:"parsing"`
+	Logging        LoggingConfig  `yaml:"logging"`
+	Health         HealthConfig   `yaml:"health"`
+	Metrics        MetricsConfig  `yaml:"metrics"`
+	OpenAIAPIKey   string         `yaml:"openai_api_key"`
+	DeepSeekAPIKey string         `yaml:"deepseek_api_key"`
+	Environment    string         `yaml:"-"`
 }
 
 // ServerConfig конфигурация HTTP сервера
@@ -44,15 +45,15 @@ type DatabaseConfig struct {
 
 // ParsingConfig конфигурация парсинга RSS
 type ParsingConfig struct {
-	Interval              time.Duration `yaml:"interval"`
-	MaxConcurrentParsers  int           `yaml:"max_concurrent_parsers"`
-	RequestTimeout        time.Duration `yaml:"request_timeout"`
-	UserAgent             string        `yaml:"user_agent"`
-	MaxFeedSize           int64         `yaml:"max_feed_size"`
-	BatchSize             int           `yaml:"batch_size"`
-	EnableDeduplication   bool          `yaml:"enable_deduplication"`
-	MinTitleLength        int           `yaml:"min_title_length"`
-	MaxTitleLength        int           `yaml:"max_title_length"`
+	Interval             time.Duration `yaml:"interval"`
+	MaxConcurrentParsers int           `yaml:"max_concurrent_parsers"`
+	RequestTimeout       time.Duration `yaml:"request_timeout"`
+	UserAgent            string        `yaml:"user_agent"`
+	MaxFeedSize          int64         `yaml:"max_feed_size"`
+	BatchSize            int           `yaml:"batch_size"`
+	EnableDeduplication  bool          `yaml:"enable_deduplication"`
+	MinTitleLength       int           `yaml:"min_title_length"`
+	MaxTitleLength       int           `yaml:"max_title_length"`
 }
 
 // LoggingConfig конфигурация логирования
@@ -172,6 +173,11 @@ func (c *Config) overrideFromEnv() {
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		c.OpenAIAPIKey = apiKey
 	}
+
+	// DeepSeek API Key
+	if apiKey := os.Getenv("DEEPSEEK_API_KEY"); apiKey != "" {
+		c.DeepSeekAPIKey = apiKey
+	}
 }
 
 // validate проверяет корректность конфигурации
@@ -246,7 +252,7 @@ func parseInt(s string, defaultValue int) int {
 	if s == "" {
 		return defaultValue
 	}
-	
+
 	var result int
 	if _, err := fmt.Sscanf(s, "%d", &result); err != nil {
 		return defaultValue

@@ -93,6 +93,7 @@ services:
       - RSS_PARSE_INTERVAL_MINUTES=${RSS_PARSE_INTERVAL_MINUTES:-10}
       - RSS_MAX_CONCURRENT_PARSERS=${RSS_MAX_CONCURRENT_PARSERS:-5}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     depends_on:
       - postgres
     networks:

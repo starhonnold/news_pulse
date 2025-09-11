@@ -133,6 +133,10 @@ metrics:
   port: 9091
   path: "/metrics"
 
+# API ключи
+openai_api_key: ""  # Установите через переменную окружения OPENAI_API_KEY
+deepseek_api_key: ""  # Установите через переменную окружения DEEPSEEK_API_KEY
+
 # Настройки для разных окружений
 environments:
   development:

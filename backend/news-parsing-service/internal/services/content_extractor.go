@@ -281,8 +281,8 @@ type ContentError struct {
 func (e *ContentExtractor) ExtractFullContentWithAI(ctx context.Context, url string) (string, error) {
 	e.logger.WithField("url", url).Debug("Extracting full content using AI")
 
-	// API ключ OpenAI
-	apiKey := e.config.OpenAIAPIKey
+	// API ключ OpenAI (заглушка для fallback метода)
+	apiKey := ""
 
 	// Формируем промпт для AI
 	prompt := fmt.Sprintf(`Пожалуйста, извлеки полный текст новости по ссылке: %s
