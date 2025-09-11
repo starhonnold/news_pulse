@@ -275,11 +275,12 @@
                             <q-chip
                               v-if="news.category && news.category.name"
                               :color="news.category.color || 'grey'"
+                              :style="news.category.color ? `background-color: ${news.category.color} !important; border-color: ${news.category.color} !important;` : ''"
                               text-color="white"
                               dense
                               class="q-ml-sm"
                             >
-                              <q-icon :name="news.category.icon || 'info'" class="q-mr-xs" />
+                              <q-icon :name="getCategoryIcon(news.category.icon)" class="q-mr-xs" />
                               {{ news.category.name }}
                             </q-chip>
                           </div>
@@ -466,33 +467,107 @@
     </q-dialog>
 
     <!-- Диалог просмотра новости -->
-    <q-dialog v-model="showNewsDialog" :maximized="$q.platform.is.mobile">
-      <q-card style="min-width: 800px; max-width: 1000px">
+    <q-dialog v-model="showNewsDialog" maximized>
+      <q-card>
         <q-card-section class="row items-center q-pb-none">
-          <div class="col">
-            <div class="text-h6">{{ selectedNews?.title }}</div>
-          </div>
-          <div class="col-auto">
-            <q-btn icon="close" flat round dense @click="showNewsDialog = false" />
-          </div>
+          <div class="text-h6">Новость</div>
+          <q-space />
+          <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
 
         <q-card-section v-if="selectedNews">
-          <!-- Контент новости -->
-          <div class="text-body1 q-mb-md" style="line-height: 1.6">
-            {{ selectedNews.content }}
+          <div class="row no-wrap">
+            <!-- Изображение новости -->
+            <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="col-auto">
+              <q-img
+                :src="selectedNews.image_url || selectedNews.image"
+                style="width: 200px; height: 200px"
+                class="rounded-borders news-image"
+                fit="cover"
+              >
+                <template v-slot:error>
+                  <div class="absolute-full flex flex-center bg-grey-3">
+                    <q-icon name="image" size="lg" color="grey-6" />
+                  </div>
+                </template>
+              </q-img>
+            </div>
+
+            <!-- Контент новости -->
+            <div class="col">
+              <q-card-section class="q-pa-md">
+                <!-- Мета информация -->
+                <div class="row items-center q-mb-sm">
+                  <div class="col-auto">
+                    <div class="news-meta">
+                      <span class="country-flag q-mr-xs">{{ selectedNews.country?.flag_emoji || selectedNews.country?.flag || '🌍' }}</span>
+                      <span class="source-name text-weight-medium text-primary">
+                        {{ cleanText(selectedNews.source?.name || 'Неизвестный источник') }}
+                      </span>
+                      <q-separator vertical class="q-mx-sm" />
+                      <span class="text-grey-7">{{ formatDate(selectedNews.published_at) }}</span>
+                    </div>
+                  </div>
+                  <div class="col-auto">
+                    <q-chip
+                      v-if="selectedNews.category && selectedNews.category.name"
+                      :color="selectedNews.category.color || 'grey'"
+                      :style="selectedNews.category.color ? `background-color: ${selectedNews.category.color} !important; border-color: ${selectedNews.category.color} !important;` : ''"
+                      text-color="white"
+                      dense
+                      class="q-ml-sm"
+                    >
+                      <q-icon :name="getCategoryIcon(selectedNews.category.icon)" class="q-mr-xs" />
+                      {{ selectedNews.category.name }}
+                    </q-chip>
+                  </div>
+                </div>
+
+                <!-- Заголовок -->
+                <div class="news-title text-h5 text-weight-medium q-mb-md">
+                  {{ cleanText(selectedNews.title) }}
+                </div>
+
+                <!-- Описание -->
+                <div class="news-description text-body1 text-grey-8 q-mb-md">
+                  {{ cleanText(selectedNews.description) }}
+                </div>
+
+                <!-- Полный текст новости -->
+                <div v-if="selectedNews.content" class="news-content q-mb-lg">
+                  <div 
+                    class="news-content-text text-body1 text-grey-8 q-mb-md"
+                    :class="{ 'error-content': isContentCorrupted(selectedNews.content) }"
+                  >
+                    {{ cleanNewsContent(selectedNews.content) }}
+                  </div>
+                  <div class="row justify-center">
+                    <q-btn
+                      color="primary"
+                      label="Читать полностью"
+                      @click="openOriginalNews(selectedNews.url)"
+                      target="_blank"
+                      icon="open_in_new"
+                      class="q-px-lg"
+                    />
+                  </div>
+                </div>
+
+                <!-- Действия -->
+                <div class="row justify-end">
+                  <div class="col-auto">
+                    <q-btn
+                      color="secondary"
+                      label="Закрыть"
+                      @click="showNewsDialog = false"
+                      flat
+                    />
+                  </div>
+                </div>
+              </q-card-section>
+            </div>
           </div>
         </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn
-            color="primary"
-            :href="selectedNews?.url"
-            target="_blank"
-            icon="open_in_new"
-            label="Читать на источнике"
-          />
-        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -715,6 +790,9 @@ function isNewNews(news) {
 }
 
 function openNews(news) {
+  console.log('Opening news:', news)
+  console.log('News content:', news.content)
+  console.log('News content length:', news.content ? news.content.length : 0)
   selectedNews.value = news
   showNewsDialog.value = true
 }
@@ -857,6 +935,12 @@ async function loadPulseNewsFromApi(pulse) {
     console.log('Pulse news response:', response)
     console.log('Pulse news response.data:', response.data)
     
+    // Проверяем первую новость из ответа
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      console.log('First news from API:', response.data.data[0])
+      console.log('First news content:', response.data.data[0].content)
+    }
+    
     // Проверяем структуру ответа
     if (response.data && response.data.success && response.data.data) {
       // Обрабатываем данные с API, преобразуем плоскую структуру в вложенную
@@ -873,18 +957,40 @@ async function loadPulseNewsFromApi(pulse) {
           id: news.category_id,
           name: news.category_name,
           slug: news.category_slug,
-          color: news.category_color
+          color: news.category_color,
+          icon: news.category_icon
         },
         country: {
-          flag: getCountryFlagBySource(news.source_domain)
+          flag: getCountryFlagBySource(news.source_domain),
+          flag_emoji: news.country_flag_emoji
         },
         tags: news.tags || []
       }))
+      
+      
       pulseNews.value = apiNews
     } else if (Array.isArray(response.data)) {
       // Обрабатываем данные как массив, убеждаемся что у каждой новости есть теги
       const apiNews = response.data.map(news => ({
         ...news,
+        // Преобразуем плоскую структуру в вложенную для совместимости с UI
+        source: {
+          id: news.source_id,
+          name: news.source_name,
+          domain: news.source_domain,
+          logo_url: news.source_logo_url
+        },
+        category: {
+          id: news.category_id,
+          name: news.category_name,
+          slug: news.category_slug,
+          color: news.category_color,
+          icon: news.category_icon
+        },
+        country: {
+          flag: getCountryFlagBySource(news.source_domain),
+          flag_emoji: news.country_flag_emoji
+        },
         tags: news.tags || []
       }))
       pulseNews.value = apiNews
@@ -1118,6 +1224,69 @@ onMounted(async () => {
   lastUpdate.value = new Date().toLocaleTimeString('ru-RU')
   console.log('Initialization completed')
 })
+
+// Функции для работы с новостями (скопированы из NewsPage.vue)
+const cleanText = (text) => {
+  if (!text) return ''
+  
+  // Удаляем HTML теги
+  let cleaned = text.replace(/<[^>]*>/g, '')
+  
+  // Удаляем множественные пробелы и переносы строк
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+  
+  return cleaned
+}
+
+const cleanNewsContent = (content) => {
+  if (!content) return ''
+  
+  // Удаляем HTML теги
+  let cleaned = content.replace(/<[^>]*>/g, '')
+  
+  // Удаляем множественные пробелы и переносы строк
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+  
+  // Если контент слишком короткий или содержит много непечатаемых символов, показываем сообщение
+  if (cleaned.length < 50) {
+    return 'Полный текст новости недоступен. Рекомендуется прочитать оригинальную статью.'
+  }
+  
+  return cleanText(cleaned)
+}
+
+const isValidImageUrl = (url) => {
+  if (!url) return false
+  
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const openOriginalNews = (url) => {
+  if (url) {
+    window.open(url, '_blank')
+  }
+}
+
+const isContentCorrupted = (content) => {
+  if (!content) return false
+  
+  // Проверяем процент непечатаемых символов
+  let nonPrintableCount = 0
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    if (charCode < 32 && charCode !== 9 && charCode !== 10 && charCode !== 13) {
+      nonPrintableCount++
+    }
+  }
+  
+  const nonPrintablePercentage = (nonPrintableCount / content.length) * 100
+  return nonPrintablePercentage > 20 || content.length < 100
+}
 </script>
 
 <style lang="scss" scoped>
@@ -1195,6 +1364,7 @@ onMounted(async () => {
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1202,6 +1372,7 @@ onMounted(async () => {
 .news-description {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.4;
@@ -1458,5 +1629,76 @@ onMounted(async () => {
   .news-card .q-img {
     height: 120px !important;
   }
+}
+
+// Стили для новостей (скопированы из NewsPage.vue)
+.news-card {
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-primary);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.news-image {
+  border-radius: 8px;
+}
+
+.news-title {
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.news-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.news-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.country-flag {
+  font-size: 1.2em;
+}
+
+.source-name {
+  font-size: 0.9em;
+}
+
+.news-actions {
+  display: flex;
+  gap: 4px;
+}
+
+// Стили для полного текста новости
+.news-content {
+  border-top: 1px solid var(--border-primary);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.news-content-text {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.error-content {
+  color: var(--q-negative);
+  font-style: italic;
+  background-color: var(--q-negative-light);
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 4px solid var(--q-negative);
 }
 </style>

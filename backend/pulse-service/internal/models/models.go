@@ -68,6 +68,7 @@ type PersonalizedNews struct {
 	ID             int       `json:"id" db:"id"`
 	Title          string    `json:"title" db:"title"`
 	Description    string    `json:"description" db:"description"`
+	Content        string    `json:"content" db:"content"`
 	URL            string    `json:"url" db:"url"`
 	ImageURL       string    `json:"image_url" db:"image_url"`
 	Author         string    `json:"author" db:"author"`
@@ -84,6 +85,7 @@ type PersonalizedNews struct {
 	CategoryName  string `json:"category_name,omitempty" db:"category_name"`
 	CategorySlug  string `json:"category_slug,omitempty" db:"category_slug"`
 	CategoryColor string `json:"category_color,omitempty" db:"category_color"`
+	CategoryIcon  string `json:"category_icon,omitempty" db:"category_icon"`
 
 	// Теги новости
 	Tags []string `json:"tags,omitempty" db:"-"`

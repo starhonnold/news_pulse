@@ -795,6 +795,7 @@ func (h *Handler) getPulseNewsFromDB(ctx context.Context, pulseID string, limit 
 			n.id,
 			n.title,
 			n.description,
+			n.content,
 			n.url,
 			n.image_url,
 			n.author,
@@ -809,6 +810,7 @@ func (h *Handler) getPulseNewsFromDB(ctx context.Context, pulseID string, limit 
 			c.name as category_name,
 			c.slug as category_slug,
 			c.color as category_color,
+			c.icon as category_icon,
 			pn.match_reason,
 			pn.relevance_score as pulse_relevance_score,
 			COALESCE(
@@ -823,10 +825,10 @@ func (h *Handler) getPulseNewsFromDB(ctx context.Context, pulseID string, limit 
 		LEFT JOIN tags t ON t.id = nt.tag_id
 		WHERE pn.pulse_id = $1::uuid
 		AND n.is_active = true
-		GROUP BY n.id, n.title, n.description, n.url, n.image_url, n.author, 
+		GROUP BY n.id, n.title, n.description, n.content, n.url, n.image_url, n.author, 
 				 n.source_id, n.category_id, n.published_at, n.relevance_score, 
 				 n.view_count, ns.name, ns.domain, ns.logo_url, c.name, c.slug, 
-				 c.color, pn.match_reason, pn.relevance_score
+				 c.color, c.icon, pn.match_reason, pn.relevance_score
 		ORDER BY pn.relevance_score DESC, n.published_at DESC
 		LIMIT $2
 	`
@@ -846,11 +848,11 @@ func (h *Handler) getPulseNewsFromDB(ctx context.Context, pulseID string, limit 
 		var tags []string
 
 		err := rows.Scan(
-			&news.ID, &news.Title, &news.Description, &news.URL,
+			&news.ID, &news.Title, &news.Description, &news.Content, &news.URL,
 			&news.ImageURL, &news.Author, &news.SourceID, &news.CategoryID,
 			&news.PublishedAt, &news.RelevanceScore, &news.ViewCount,
 			&news.SourceName, &news.SourceDomain, &news.SourceLogoURL,
-			&categoryName, &categorySlug, &categoryColor,
+			&categoryName, &categorySlug, &categoryColor, &news.CategoryIcon,
 			&matchReason, &pulseRelevanceScore, pq.Array(&tags),
 		)
 

@@ -196,15 +196,15 @@
                         </div>
                         <div class="col-auto">
                           <q-chip
-                            v-if="news.category_name"
-                            :color="news.category_color || 'primary'"
-                            :style="news.category_color ? `background-color: ${news.category_color} !important; border-color: ${news.category_color} !important;` : ''"
+                            v-if="news.category && news.category.name"
+                            :color="news.category.color || 'primary'"
+                            :style="news.category.color ? `background-color: ${news.category.color} !important; border-color: ${news.category.color} !important;` : ''"
                             text-color="white"
                             dense
                             class="q-ml-sm"
                           >
-                            <q-icon :name="getCategoryIcon(news.category_icon)" class="q-mr-xs" />
-                            {{ news.category_name }}
+                            <q-icon :name="getCategoryIcon(news.category.icon)" class="q-mr-xs" />
+                            {{ news.category.name }}
                           </q-chip>
                         </div>
                       </div>
