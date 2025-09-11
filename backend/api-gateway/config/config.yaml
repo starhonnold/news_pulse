@@ -1,0 +1,196 @@
+# API Gateway Configuration
+# Конфигурация шлюза API
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+
+# Настройки маршрутизации к микросервисам
+services:
+  news_parsing:
+    name: "News Parsing Service"
+    url: "http://news-parsing-service:8081"
+    health_endpoint: "/health"
+    timeout: 30s
+    retry_attempts: 3
+    
+  news_management:
+    name: "News Management Service"
+    url: "http://news-management-service:8082"
+    health_endpoint: "/health"
+    timeout: 30s
+    retry_attempts: 3
+    
+  pulse:
+    name: "Pulse Service"
+    url: "http://pulse-service:8083"
+    health_endpoint: "/health"
+    timeout: 30s
+    retry_attempts: 3
+
+# Аутентификация и авторизация
+auth:
+  # JWT настройки
+  jwt_secret: "your-super-secret-jwt-key-change-in-production"
+  jwt_expiration_hours: 24
+  jwt_refresh_expiration_hours: 168  # 7 дней
+  
+  # Включить аутентификацию (для разработки можно отключить)
+  enabled: false
+  
+  # Публичные маршруты (не требуют аутентификации)
+  public_routes:
+    - "/health"
+    - "/api/auth/login"
+    - "/api/auth/register"
+    - "/api/auth/refresh"
+    - "/api/news*"
+    - "/api/pulses*"
+    - "/api/categories*"
+    - "/api/countries*"
+    - "/metrics"
+    - "/ws"  # WebSocket соединения проверяются отдельно
+
+# Rate Limiting
+rate_limiting:
+  enabled: false
+  
+  # Глобальные лимиты
+  global:
+    requests_per_minute: 1000
+    burst: 100
+    
+  # Лимиты по пользователям
+  per_user:
+    requests_per_minute: 60
+    burst: 10
+    
+  # Лимиты для анонимных пользователей
+  anonymous:
+    requests_per_minute: 10
+    burst: 5
+    
+  # Исключения из rate limiting
+  whitelist_ips:
+    - "127.0.0.1"
+    - "::1"
+
+# CORS настройки
+cors:
+  enabled: true
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "http://localhost:8080"
+    - "http://localhost:9000"
+    - "http://localhost:9001"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-User-ID"
+    - "X-Request-ID"
+  expose_headers:
+    - "X-Request-ID"
+    - "X-Rate-Limit-Remaining"
+  allow_credentials: true
+  max_age: 3600
+
+# WebSocket настройки
+websocket:
+  enabled: true
+  path: "/ws"
+  
+  # Настройки соединения
+  read_buffer_size: 1024
+  write_buffer_size: 1024
+  handshake_timeout: 10s
+  
+  # Лимиты
+  max_connections: 1000
+  max_connections_per_user: 5
+  
+  # Heartbeat
+  ping_period: 54s
+  pong_wait: 60s
+  write_wait: 10s
+
+# Логирование
+logging:
+  level: "debug"  # debug, info, warn, error
+  format: "json" # json, text
+  output: "stdout" # stdout, file
+  file_path: "/var/log/api-gateway.log"
+  
+  # Логирование запросов
+  access_log: true
+  # Логирование медленных запросов (в миллисекундах)
+  slow_request_threshold: 1000
+
+# Health check
+health:
+  port: 8090
+  path: "/health"
+  
+  # Проверка состояния микросервисов
+  check_services: true
+  service_check_timeout: 5s
+
+# Метрики
+metrics:
+  enabled: true
+  port: 9090
+  path: "/metrics"
+
+# Настройки прокси
+proxy:
+  # Таймауты
+  dial_timeout: 5s
+  response_header_timeout: 10s
+  
+  # Буферизация
+  disable_compression: false
+  flush_interval: 100ms
+  
+  # Заголовки
+  add_headers:
+    X-Forwarded-Proto: "https"
+    X-Gateway-Version: "1.0.0"
+  
+  # Удаляемые заголовки
+  remove_headers:
+    - "Server"
+
+# Настройки для разных окружений
+environments:
+  development:
+    auth:
+      enabled: false  # Отключаем аутентификацию в разработке
+    logging:
+      level: "debug"
+    rate_limiting:
+      enabled: false
+    cors:
+      allowed_origins:
+        - "*"  # Разрешаем все origins в разработке
+  
+  production:
+    auth:
+      enabled: true
+    logging:
+      level: "warn"
+    rate_limiting:
+      enabled: true
+      global:
+        requests_per_minute: 500  # Более строгие лимиты в production
+    cors:
+      allowed_origins:
+        - "https://your-domain.com"

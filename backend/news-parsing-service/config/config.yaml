@@ -1,0 +1,151 @@
+# News Parsing Service Configuration
+# Конфигурация сервиса парсинга новостей
+
+server:
+  port: 8081
+  host: "0.0.0.0"
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+
+database:
+  host: "postgres"
+  port: 5432
+  user: "news_pulse_user"
+  password: "news_pulse_secure_password_2024"
+  dbname: "news_pulse"
+  sslmode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: "1h"
+
+parsing:
+  # Интервал парсинга RSS лент
+  interval: "10m"
+  
+  # Максимальное количество одновременно парсящихся источников
+  max_concurrent_parsers: 5
+  
+  # Таймаут для HTTP запросов к RSS лентам
+  request_timeout: "30s"
+  
+  # User-Agent для запросов
+  user_agent: "NewsPulse/1.0 RSS Parser (+https://newspulse.local)"
+  
+  # Максимальный размер RSS ленты (в байтах)
+  max_feed_size: 10485760  # 10MB
+  
+  # Количество новостей для обработки за один раз
+  batch_size: 100
+  
+  # Включить дедупликацию новостей
+  enable_deduplication: true
+  
+  # Минимальная длина заголовка новости
+  min_title_length: 10
+  
+  # Максимальная длина заголовка новости
+  max_title_length: 500
+
+# Настройки для извлечения полного текста новостей
+content_extraction:
+  # Включить извлечение полного текста
+  enable_full_text: true
+  
+  # Максимальное количество повторных попыток
+  max_retries: 3
+  
+  # Таймаут для запросов
+  request_timeout: "30s"
+  
+  # User-Agent для запросов
+  user_agent: "NewsPulse-Parser/1.0 (+https://newspulse.local)"
+
+# Настройки FiveFilters Full-Text RSS
+fivefilters:
+  # Базовый URL API FiveFilters
+  base_url: "https://ftr.fivefilters.org"
+  
+  # Включить FiveFilters
+  enabled: false
+  
+  # Таймаут для запросов
+  request_timeout: "30s"
+  
+  # Максимальное количество повторных попыток
+  max_retries: 3
+
+# Настройки Mercury Parser
+mercury:
+  # Базовый URL API Mercury Parser
+  base_url: "https://mercury.postlight.com/parser"
+  
+  # Включить Mercury Parser
+  enabled: false
+  
+  # API ключ (если требуется)
+  api_key: ""
+  
+  # Таймаут для запросов
+  request_timeout: "30s"
+  
+  # Максимальное количество повторных попыток
+  max_retries: 3
+
+# Поддерживаемые домены для извлечения контента
+supported_domains:
+  - "bbc.com"
+  - "cnn.com"
+  - "reuters.com"
+  - "lenta.ru"
+  - "ria.ru"
+  - "tass.ru"
+  - "interfax.ru"
+  - "rbc.ru"
+  - "vedomosti.ru"
+  - "kommersant.ru"
+  - "gazeta.ru"
+  - "rt.com"
+  - "meduza.io"
+  - "dw.com"
+  - "nytimes.com"
+  - "guardian.com"
+  - "24.kg"
+  - "kloop.kg"
+  - "azattyk.org"
+  - "kaktus.media"
+
+logging:
+  level: "debug"  # debug, info, warn, error
+  format: "json" # json, text
+  output: "stdout" # stdout, file
+  file_path: "/var/log/news-parsing-service.log"
+
+health:
+  # Порт для health check endpoint
+  port: 8091
+  # Путь для health check
+  path: "/health"
+
+metrics:
+  # Включить метрики Prometheus
+  enabled: true
+  port: 9091
+  path: "/metrics"
+
+# Настройки для разных окружений
+environments:
+  development:
+    logging:
+      level: "debug"
+    parsing:
+      interval: "5m"
+      max_concurrent_parsers: 2
+  
+  production:
+    logging:
+      level: "warn"
+    parsing:
+      interval: "10m"
+      max_concurrent_parsers: 5
+      request_timeout: "45s"

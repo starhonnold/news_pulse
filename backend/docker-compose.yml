@@ -1,0 +1,240 @@
+services:
+  # API Gateway - центральный шлюз для всех запросов
+  api-gateway:
+    build: 
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: news_pulse_api_gateway
+    restart: unless-stopped
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+      - "${API_GATEWAY_HEALTH_PORT:-8090}:8090"
+      - "${API_GATEWAY_METRICS_PORT:-9090}:9090"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - NEWS_PARSING_SERVICE_URL=http://news-parsing-service:8081
+      - NEWS_MANAGEMENT_SERVICE_URL=http://news-management-service:8082
+      - PULSE_SERVICE_URL=http://pulse-service:8083
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - RATE_LIMITING_ENABLED=${RATE_LIMITING_ENABLED:-false}
+      - CORS_ENABLED=${CORS_ENABLED:-true}
+      - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
+    depends_on:
+      - news-parsing-service
+      - news-management-service
+      - pulse-service
+    networks:
+      - news_pulse_network
+    # healthcheck:
+    #   test: ["CMD-SHELL", "nc -z localhost 8090 || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    volumes:
+      - gateway_logs:/var/log
+
+  # Notification Service - сервис уведомлений
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: news_pulse_notification_service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8084}:8084"
+      - "${NOTIFICATION_SERVICE_HEALTH_PORT:-8094}:8094"
+      - "${NOTIFICATION_SERVICE_METRICS_PORT:-9094}:9094"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=news_pulse
+      - POSTGRES_USER=news_pulse_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-news_pulse_secure_password_2024}
+      - WEBSOCKET_GATEWAY_URL=ws://api-gateway:8080/ws
+      - NEWS_MANAGEMENT_SERVICE_URL=http://news-management-service:8082
+      - PULSE_SERVICE_URL=http://pulse-service:8083
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      - postgres
+      - api-gateway
+    networks:
+      - news_pulse_network
+    # healthcheck:
+    #   test: ["CMD", "/notification-service", "health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    volumes:
+      - notification_logs:/var/log
+
+  # News Parsing Service - основной сервис парсинга RSS лент
+  news-parsing-service:
+    build: 
+      context: ./news-parsing-service
+      dockerfile: Dockerfile
+    container_name: news_pulse_parsing_service
+    restart: unless-stopped
+    ports:
+      - "${NEWS_PARSING_PORT:-8081}:8081"
+      - "${NEWS_PARSING_HEALTH_PORT:-8091}:8091"
+      - "${NEWS_PARSING_METRICS_PORT:-9091}:9091"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=news_pulse
+      - POSTGRES_USER=news_pulse_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-news_pulse_secure_password_2024}
+      - RSS_PARSE_INTERVAL_MINUTES=${RSS_PARSE_INTERVAL_MINUTES:-10}
+      - RSS_MAX_CONCURRENT_PARSERS=${RSS_MAX_CONCURRENT_PARSERS:-5}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      - postgres
+    networks:
+      - news_pulse_network
+    # healthcheck:
+    #   test: ["CMD", "/news-parsing-service", "health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    volumes:
+      - parsing_logs:/var/log
+
+  # News Management Service - сервис управления новостями
+  news-management-service:
+    build: 
+      context: ./news-management-service
+      dockerfile: Dockerfile
+    container_name: news_pulse_management_service
+    restart: unless-stopped
+    ports:
+      - "${NEWS_MANAGEMENT_PORT:-8082}:8082"
+      - "${NEWS_MANAGEMENT_HEALTH_PORT:-8092}:8092"
+      - "${NEWS_MANAGEMENT_METRICS_PORT:-9092}:9092"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=news_pulse
+      - POSTGRES_USER=news_pulse_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-news_pulse_secure_password_2024}
+      - API_DEFAULT_PAGE_SIZE=${API_DEFAULT_PAGE_SIZE:-20}
+      - API_MAX_PAGE_SIZE=${API_MAX_PAGE_SIZE:-100}
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      - postgres
+    networks:
+      - news_pulse_network
+    # healthcheck:
+    #   test: ["CMD", "/news-management-service", "health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    volumes:
+      - management_logs:/var/log
+
+  # Pulse Service - сервис управления пульсами
+  pulse-service:
+    build: 
+      context: ./pulse-service
+      dockerfile: Dockerfile
+    container_name: news_pulse_pulse_service
+    restart: unless-stopped
+    ports:
+      - "${PULSE_SERVICE_PORT:-8083}:8083"
+      - "${PULSE_SERVICE_HEALTH_PORT:-8093}:8093"
+      - "${PULSE_SERVICE_METRICS_PORT:-9093}:9093"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=news_pulse
+      - POSTGRES_USER=news_pulse_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-news_pulse_secure_password_2024}
+      - API_MAX_PULSES_PER_USER=${API_MAX_PULSES_PER_USER:-10}
+      - API_MAX_NEWS_PER_FEED=${API_MAX_NEWS_PER_FEED:-100}
+      - PULSE_DEFAULT_REFRESH_INTERVAL=${PULSE_DEFAULT_REFRESH_INTERVAL:-30}
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      - postgres
+    networks:
+      - news_pulse_network
+    # healthcheck:
+    #   test: ["CMD", "/pulse-service", "health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    volumes:
+      - pulse_logs:/var/log
+
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: news_pulse_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: news_pulse
+      POSTGRES_USER: news_pulse_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-news_pulse_secure_password_2024}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Данные базы данных
+      - postgres_data:/var/lib/postgresql/data
+      # Инициализационные скрипты
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed_data.sql:/docker-entrypoint-initdb.d/02-seed_data.sql:ro
+      # Конфигурация PostgreSQL для оптимизации
+      - ./database/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: >
+      postgres 
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c log_statement=all
+      -c log_destination=stderr
+      -c logging_collector=off
+    networks:
+      - news_pulse_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U news_pulse_user -d news_pulse"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+
+
+volumes:
+  postgres_data:
+    driver: local
+    name: news_pulse_postgres_data
+  parsing_logs:
+    driver: local
+    name: news_pulse_parsing_logs
+  management_logs:
+    driver: local
+    name: news_pulse_management_logs
+  pulse_logs:
+    driver: local
+    name: news_pulse_pulse_logs
+  gateway_logs:
+    driver: local
+    name: news_pulse_gateway_logs
+  notification_logs:
+    driver: local
+    name: news_pulse_notification_logs
+
+networks:
+  news_pulse_network:
+    driver: bridge
+    name: news_pulse_network

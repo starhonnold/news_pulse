@@ -1,0 +1,99 @@
+# Pulse Service Configuration
+# Конфигурация сервиса управления пульсами
+
+server:
+  port: 8083
+  host: "0.0.0.0"
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+
+database:
+  host: "postgres"
+  port: 5432
+  user: "news_pulse_user"
+  password: "news_pulse_secure_password_2024"
+  dbname: "news_pulse"
+  sslmode: "disable"
+  max_open_conns: 20
+  max_idle_conns: 8
+  conn_max_lifetime: "1h"
+
+api:
+  # Максимальное количество пульсов на пользователя
+  max_pulses_per_user: 10
+  # Максимальное количество источников в пульсе
+  max_sources_per_pulse: 50
+  # Максимальное количество категорий в пульсе
+  max_categories_per_pulse: 10
+  # Максимальное количество новостей в персонализированной ленте
+  max_news_per_feed: 100
+  # Размер страницы по умолчанию для ленты
+  default_feed_page_size: 20
+  # Таймаут для запросов к базе данных
+  db_timeout: "30s"
+  # Включить уведомления о новых новостях в пульсах
+  enable_pulse_notifications: true
+
+pulse:
+  # Минимальный интервал обновления пульса (в минутах)
+  min_refresh_interval: 5
+  # Максимальный интервал обновления пульса (в минутах)
+  max_refresh_interval: 1440  # 24 часа
+  # Интервал обновления по умолчанию (в минутах)
+  default_refresh_interval: 30
+  # Максимальная длина названия пульса
+  max_pulse_name_length: 100
+  # Максимальная длина описания пульса
+  max_pulse_description_length: 500
+
+caching:
+  # Включить кеширование
+  enabled: true
+  # TTL для кеша пульсов пользователя (в секундах)
+  user_pulses_ttl: 600  # 10 минут
+  # TTL для кеша персонализированной ленты
+  personalized_feed_ttl: 300  # 5 минут
+  # TTL для кеша статистики пульсов
+  pulse_stats_ttl: 900  # 15 минут
+  # Максимальный размер кеша (количество элементов)
+  max_size: 5000
+
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json" # json, text
+  output: "stdout" # stdout, file
+  file_path: "/var/log/pulse-service.log"
+
+health:
+  # Порт для health check endpoint
+  port: 8093
+  # Путь для health check
+  path: "/health"
+
+metrics:
+  # Включить метрики Prometheus
+  enabled: true
+  port: 9093
+  path: "/metrics"
+
+# Настройки для разных окружений
+environments:
+  development:
+    logging:
+      level: "debug"
+    api:
+      max_pulses_per_user: 5
+      default_feed_page_size: 10
+    caching:
+      enabled: false
+  
+  production:
+    logging:
+      level: "warn"
+    api:
+      max_pulses_per_user: 10
+      max_news_per_feed: 200
+    caching:
+      enabled: true
+      user_pulses_ttl: 900  # 15 минут в production
