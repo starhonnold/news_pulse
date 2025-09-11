@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"news-parsing-service/internal/config"
 	"news-parsing-service/internal/models"
 	"news-parsing-service/internal/repository"
+	"news-parsing-service/internal/utils"
 )
 
 // ParsingService представляет сервис парсинга новостей
@@ -33,6 +35,7 @@ type ParsingService struct {
 	contentExtractor         *ContentExtractor
 	deepSeekContentExtractor *DeepSeekContentExtractor
 	deepSeekNewsClassifier   *DeepSeekNewsClassifier
+	deepSeekUnifiedProcessor *DeepSeekUnifiedProcessor
 }
 
 // NewParsingService создает новый сервис парсинга
@@ -63,6 +66,9 @@ func NewParsingService(
 	// Создаем DeepSeek-классификатор новостей
 	deepSeekNewsClassifier := NewDeepSeekNewsClassifier(fullConfig.DeepSeekAPIKey, logger)
 
+	// Создаем объединенный DeepSeek-процессор
+	deepSeekUnifiedProcessor := NewDeepSeekUnifiedProcessor(fullConfig.DeepSeekAPIKey, logger)
+
 	return &ParsingService{
 		rssParser:                rssParser,
 		newsSourceRepo:           newsSourceRepo,
@@ -76,6 +82,7 @@ func NewParsingService(
 		contentExtractor:         contentExtractor,
 		deepSeekContentExtractor: deepSeekContentExtractor,
 		deepSeekNewsClassifier:   deepSeekNewsClassifier,
+		deepSeekUnifiedProcessor: deepSeekUnifiedProcessor,
 	}
 }
 
@@ -248,8 +255,7 @@ func (s *ParsingService) parseSource(ctx context.Context, source models.NewsSour
 // processItems обрабатывает элементы из RSS ленты и конвертирует их в новости
 func (s *ParsingService) processItems(ctx context.Context, items []models.ParsedFeedItem, source models.NewsSource) ([]models.News, error) {
 	var newsList []models.News
-	var itemsForDeepSeekClassification []DeepSeekNewsItem
-	var itemsForContentExtraction []DeepSeekContentExtractionItem
+	var itemsForUnifiedProcessing []UnifiedNewsItem
 
 	// Сначала обрабатываем все элементы и собираем те, которые нуждаются в обработке
 	for i, item := range items {
@@ -265,71 +271,37 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Собираем элементы для DeepSeek-классификации
-		itemsForDeepSeekClassification = append(itemsForDeepSeekClassification, DeepSeekNewsItem{
+		// Собираем элементы для объединенной обработки (классификация + извлечение контента)
+		itemsForUnifiedProcessing = append(itemsForUnifiedProcessing, UnifiedNewsItem{
 			Index:       i,
 			Title:       item.Title,
 			Description: item.Description,
 			Content:     item.Content,
+			URL:         item.Link,
 			Categories:  item.Categories,
 		})
-
-		// Собираем элементы для извлечения полного контента через DeepSeek
-		if s.deepSeekContentExtractor.IsValidURL(item.Link) {
-			itemsForContentExtraction = append(itemsForContentExtraction, DeepSeekContentExtractionItem{
-				URL:   item.Link,
-				Index: i,
-			})
-		}
 	}
 
-	// Выполняем batch-классификацию для элементов через DeepSeek
-	deepSeekResults := make(map[int]int)
-	if len(itemsForDeepSeekClassification) > 0 {
-		s.logger.WithField("items_count", len(itemsForDeepSeekClassification)).Info("Performing batch DeepSeek classification")
+	// Выполняем объединенную обработку через DeepSeek
+	unifiedResults := make(map[int]UnifiedProcessingResult)
+	if len(itemsForUnifiedProcessing) > 0 {
+		s.logger.WithField("items_count", len(itemsForUnifiedProcessing)).Info("Performing unified DeepSeek processing")
 
-		// Ограничиваем количество элементов для batch-классификации (максимум 10)
-		batchSize := 10
-		if len(itemsForDeepSeekClassification) > batchSize {
-			itemsForDeepSeekClassification = itemsForDeepSeekClassification[:batchSize]
-		}
-
-		results, err := s.deepSeekNewsClassifier.ClassifyNewsBatch(ctx, itemsForDeepSeekClassification)
+		results, err := s.deepSeekUnifiedProcessor.ProcessNewsBatch(ctx, itemsForUnifiedProcessing)
 		if err != nil {
-			s.logger.WithError(err).Warn("Batch DeepSeek classification failed")
+			s.logger.WithError(err).Warn("Unified DeepSeek processing failed")
 		} else {
-			// Создаем карту результатов DeepSeek-классификации
+			// Создаем карту результатов объединенной обработки
 			for _, result := range results {
 				if result.Error == nil {
-					deepSeekResults[result.Index] = result.CategoryID
-					s.logger.WithFields(logrus.Fields{
-						"index":       result.Index,
-						"category_id": result.CategoryID,
-						"confidence":  result.Confidence,
-					}).Info("DeepSeek classified news category")
-				}
-			}
-		}
-	}
-
-	// Выполняем batch-извлечение контента через AI
-	contentResults := make(map[int]DeepSeekContentExtractionResult)
-	if len(itemsForContentExtraction) > 0 {
-		s.logger.WithField("items_count", len(itemsForContentExtraction)).Info("Performing batch AI content extraction")
-
-		results, err := s.deepSeekContentExtractor.ExtractContentBatch(ctx, itemsForContentExtraction)
-		if err != nil {
-			s.logger.WithError(err).Warn("Batch AI content extraction failed")
-		} else {
-			// Создаем карту результатов извлечения контента
-			for _, result := range results {
-				if result.Error == nil {
-					contentResults[result.Index] = result
+					unifiedResults[result.Index] = result
 					s.logger.WithFields(logrus.Fields{
 						"index":          result.Index,
 						"title":          truncateForLog(result.Title, 50),
 						"content_length": len(result.Content),
-					}).Info("DeepSeek extracted content")
+						"category_id":    result.CategoryID,
+						"confidence":     result.Confidence,
+					}).Info("DeepSeek unified processed news")
 				}
 			}
 		}
@@ -349,32 +321,32 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Используем результат DeepSeek-классификации
+		// Используем результат объединенной обработки
 		var categoryID *int
-		if deepSeekCategoryID, exists := deepSeekResults[i]; exists {
-			categoryID = &deepSeekCategoryID
-		} else {
-			// Если DeepSeek-классификация не сработала, используем категорию по умолчанию
-			defaultCategory := models.CategoryPolitics // "Политика" как fallback
-			categoryID = &defaultCategory
-		}
+		var fullContent string
+		var contentSource string
 
-		// Определяем полный контент новости
-		fullContent := item.Content
-		contentSource := "rss_content"
+		if unifiedResult, exists := unifiedResults[i]; exists {
+			// Используем результаты от объединенного процессора
+			categoryID = &unifiedResult.CategoryID
+			fullContent = unifiedResult.Content
+			contentSource = "unified_ai_processing"
 
-		// Сначала пробуем использовать контент, извлеченный через AI
-		if contentResult, exists := contentResults[i]; exists {
-			fullContent = contentResult.Content
-			contentSource = "ai_extraction"
 			s.logger.WithFields(logrus.Fields{
 				"url":            item.Link,
 				"content_length": len(fullContent),
 				"source":         contentSource,
-			}).Debug("Using AI extracted content")
-		} else if fullContent == "" {
+				"category_id":    categoryID,
+			}).Debug("Using unified AI processing results")
+		} else {
+			// Fallback: используем старую логику
+			defaultCategory := models.CategoryPolitics
+			categoryID = &defaultCategory
+			fullContent = item.Content
+			contentSource = "rss_content"
+
 			// Если AI-извлечение не удалось, пробуем извлечь с веб-страницы (fallback)
-			if s.contentExtractor.IsValidURL(item.Link) {
+			if fullContent == "" && s.contentExtractor.IsValidURL(item.Link) {
 				if extractedContent, err := s.contentExtractor.ExtractFullContent(ctx, item.Link); err == nil && extractedContent != "" {
 					fullContent = extractedContent
 					contentSource = "web_extraction"
@@ -383,36 +355,20 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 						"content_length": len(extractedContent),
 						"source":         contentSource,
 					}).Debug("Extracted full content from web page")
-				} else {
-					s.logger.WithFields(logrus.Fields{
-						"url":    item.Link,
-						"error":  err,
-						"source": "web_extraction",
-					}).Debug("Failed to extract full content from web page")
 				}
 			}
-		}
 
-		// Если не удалось извлечь с веб-страницы, используем описание из RSS
-		if fullContent == "" {
-			fullContent = item.Description
-			contentSource = "rss_description"
-			s.logger.WithFields(logrus.Fields{
-				"url":            item.Link,
-				"content_length": len(fullContent),
-				"source":         contentSource,
-			}).Debug("Using description from RSS feed")
-		}
+			// Если и описания нет, используем описание из RSS
+			if fullContent == "" {
+				fullContent = item.Description
+				contentSource = "rss_description"
+			}
 
-		// Если и описания нет, используем контент из RSS
-		if fullContent == "" {
-			fullContent = s.contentExtractor.ExtractContentFromRSS(item.Description, item.Content)
-			contentSource = "rss_content"
-			s.logger.WithFields(logrus.Fields{
-				"url":            item.Link,
-				"content_length": len(fullContent),
-				"source":         contentSource,
-			}).Debug("Using content from RSS feed")
+			// Если и описания нет, используем контент из RSS
+			if fullContent == "" {
+				fullContent = s.contentExtractor.ExtractContentFromRSS(item.Description, item.Content)
+				contentSource = "rss_content"
+			}
 		}
 
 		// Определяем страну по контенту
@@ -686,21 +642,29 @@ func cleanUTF8(text string) string {
 		return text
 	}
 
-	// Проверяем, является ли строка валидной UTF-8
-	if utf8.ValidString(text) {
-		return text
+	// Сначала проверяем и исправляем UTF-8
+	if !utf8.ValidString(text) {
+		text = strings.ToValidUTF8(text, " ")
 	}
 
-	// Если строка невалидна, очищаем её
+	// Удаляем непечатаемые символы и управляющие символы
 	var result strings.Builder
 	for _, r := range text {
-		if r == utf8.RuneError {
-			// Заменяем невалидные символы на пробел
-			result.WriteRune(' ')
-		} else {
+		// Проверяем, является ли символ печатаемым
+		if utils.IsPrintableRune(r) {
 			result.WriteRune(r)
+		} else if r == '\n' || r == '\r' || r == '\t' {
+			// Сохраняем основные пробельные символы
+			result.WriteRune(r)
+		} else {
+			// Заменяем непечатаемые символы на пробел
+			result.WriteRune(' ')
 		}
 	}
 
-	return strings.TrimSpace(result.String())
+	// Очищаем множественные пробелы
+	cleaned := strings.TrimSpace(result.String())
+	cleaned = regexp.MustCompile(`\s+`).ReplaceAllString(cleaned, " ")
+
+	return cleaned
 }

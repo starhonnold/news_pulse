@@ -11,24 +11,26 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"news-parsing-service/internal/utils"
 )
 
 // DeepSeekContentExtractor извлекатель контента с помощью DeepSeek API
 type DeepSeekContentExtractor struct {
-	logger     *logrus.Logger
-	httpClient *http.Client
-	apiKey     string
+	logger      *logrus.Logger
+	httpClient  *http.Client
+	apiKey      string
 	lastRequest time.Time
-	model      string // Модель для использования
+	model       string // Модель для использования
 }
 
 // DeepSeekRequest структура запроса к DeepSeek API
 type DeepSeekRequest struct {
-	Model       string                `json:"model"`
-	Messages    []DeepSeekMessage     `json:"messages"`
-	MaxTokens   int                   `json:"max_tokens,omitempty"`
-	Temperature float64               `json:"temperature,omitempty"`
-	Stream      bool                  `json:"stream,omitempty"`
+	Model       string            `json:"model"`
+	Messages    []DeepSeekMessage `json:"messages"`
+	MaxTokens   int               `json:"max_tokens,omitempty"`
+	Temperature float64           `json:"temperature,omitempty"`
+	Stream      bool              `json:"stream,omitempty"`
 }
 
 // DeepSeekMessage структура сообщения для DeepSeek API
@@ -181,7 +183,9 @@ func (e *DeepSeekContentExtractor) buildBatchPrompt(items []DeepSeekContentExtra
 4. Удали все HTML-теги и оставь только чистый текст
 5. Если новость недоступна или не найдена, верни "Новость недоступна"
 6. Ограничь текст до 2000 символов
-7. Убедись, что текст в правильной кодировке (UTF-8) и без специальных символов
+7. ВАЖНО: Используй только печатаемые символы UTF-8, без управляющих символов
+8. Убедись, что текст читаемый и без искажений кодировки
+9. Замени все непечатаемые символы на пробелы
 
 Ответь в формате JSON:
 {
@@ -189,12 +193,12 @@ func (e *DeepSeekContentExtractor) buildBatchPrompt(items []DeepSeekContentExtra
     {
       "index": 1,
       "title": "Заголовок новости",
-      "content": "Полный текст новости без HTML-тегов"
+      "content": "Полный текст новости без HTML-тегов и специальных символов"
     },
     {
       "index": 2,
       "title": "Заголовок новости",
-      "content": "Полный текст новости без HTML-тегов"
+      "content": "Полный текст новости без HTML-тегов и специальных символов"
     }
   ]
 }
@@ -228,8 +232,8 @@ func (e *DeepSeekContentExtractor) sendRequest(ctx context.Context, prompt strin
 				Content: prompt,
 			},
 		},
-		MaxTokens:   2000, // Ограничиваем для экономии
-		Temperature: 0.1,  // Низкая температура для точности
+		MaxTokens:   2000,  // Ограничиваем для экономии
+		Temperature: 0.1,   // Низкая температура для точности
 		Stream:      false, // Не используем streaming
 	}
 
@@ -344,10 +348,14 @@ func (e *DeepSeekContentExtractor) parseBatchResponse(response string, items []D
 				Usage:   usage,
 			}
 		} else {
+			// Дополнительная очистка контента от непечатаемых символов
+			cleanedTitle := utils.CleanText(extraction.Title)
+			cleanedContent := utils.CleanText(extraction.Content)
+
 			results[index] = DeepSeekContentExtractionResult{
 				Index:   index,
-				Title:   extraction.Title,
-				Content: extraction.Content,
+				Title:   cleanedTitle,
+				Content: cleanedContent,
 				Error:   nil,
 				Usage:   usage,
 			}
@@ -355,6 +363,34 @@ func (e *DeepSeekContentExtractor) parseBatchResponse(response string, items []D
 	}
 
 	return results, nil
+}
+
+// cleanText очищает текст от непечатаемых символов
+func cleanText(text string) string {
+	if text == "" {
+		return text
+	}
+
+	// Удаляем непечатаемые символы и управляющие символы
+	var result strings.Builder
+	for _, r := range text {
+		// Проверяем, является ли символ печатаемым
+		if utils.IsPrintableRune(r) {
+			result.WriteRune(r)
+		} else if r == '\n' || r == '\r' || r == '\t' {
+			// Сохраняем основные пробельные символы
+			result.WriteRune(r)
+		} else {
+			// Заменяем непечатаемые символы на пробел
+			result.WriteRune(' ')
+		}
+	}
+
+	// Очищаем множественные пробелы
+	cleaned := strings.TrimSpace(result.String())
+	cleaned = strings.ReplaceAll(cleaned, "  ", " ")
+
+	return cleaned
 }
 
 // IsValidURL проверяет, является ли URL валидным для извлечения контента
@@ -392,8 +428,8 @@ func (e *DeepSeekContentExtractor) GetUsageInfo(usage *DeepSeekUsage) string {
 	if usage == nil {
 		return "Информация об использовании токенов недоступна"
 	}
-	
+
 	cost := float64(usage.PromptTokens)*0.07/1000000 + float64(usage.CompletionTokens)*1.10/1000000
-	return fmt.Sprintf("Использовано токенов: %d входных, %d выходных, %d всего. Примерная стоимость: $%.4f", 
+	return fmt.Sprintf("Использовано токенов: %d входных, %d выходных, %d всего. Примерная стоимость: $%.4f",
 		usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens, cost)
 }

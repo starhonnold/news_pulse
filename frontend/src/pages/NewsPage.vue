@@ -344,17 +344,28 @@
                   {{ cleanText(selectedNews.description) }}
                 </div>
 
-                <!-- Действия -->
-                <div class="row items-center justify-between">
-                  <div class="col">
+                <!-- Полный текст новости -->
+                <div v-if="selectedNews.content" class="news-content q-mb-lg">
+                  <div 
+                    class="news-content-text text-body1 text-grey-8 q-mb-md"
+                    :class="{ 'error-content': isContentCorrupted(selectedNews.content) }"
+                  >
+                    {{ cleanNewsContent(selectedNews.content) }}
+                  </div>
+                  <div class="row justify-center">
                     <q-btn
                       color="primary"
-                      label="Открыть оригинал"
+                      label="Читать полностью"
                       @click="openOriginalNews(selectedNews.url)"
                       target="_blank"
                       icon="open_in_new"
+                      class="q-px-lg"
                     />
                   </div>
+                </div>
+
+                <!-- Действия -->
+                <div class="row justify-end">
                   <div class="col-auto">
                     <q-btn
                       color="secondary"
@@ -625,6 +636,63 @@ const cleanText = (text) => {
     .trim()
 }
 
+// Функция для проверки и очистки контента новости
+const cleanNewsContent = (content) => {
+  if (!content) return ''
+  
+  // Проверяем, является ли контент искаженным (содержит много непечатаемых символов)
+  let nonPrintableCount = 0
+  const totalLength = content.length
+  
+  // Подсчитываем непечатаемые символы вручную
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    // Проверяем диапазоны непечатаемых символов
+    if ((charCode >= 0 && charCode <= 8) || // \u0000-\u0008
+        charCode === 11 || // \u000B
+        charCode === 12 || // \u000C
+        (charCode >= 14 && charCode <= 31) || // \u000E-\u001F
+        (charCode >= 127 && charCode <= 159)) { // \u007F-\u009F
+      nonPrintableCount++
+    }
+  }
+  
+  // Если более 20% символов непечатаемые, считаем контент искаженным
+  if (nonPrintableCount / totalLength > 0.2) {
+    console.warn('Обнаружен искаженный контент новости:', {
+      totalLength,
+      nonPrintableCount,
+      ratio: nonPrintableCount / totalLength,
+      preview: content.substring(0, 100)
+    })
+    return 'Контент новости недоступен или поврежден. Рекомендуется прочитать оригинальную статью.'
+  }
+  
+  // Очищаем контент от непечатаемых символов
+  let cleanedContent = ''
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    // Пропускаем непечатаемые символы
+    if (!((charCode >= 0 && charCode <= 8) ||
+          charCode === 11 ||
+          charCode === 12 ||
+          (charCode >= 14 && charCode <= 31) ||
+          (charCode >= 127 && charCode <= 159))) {
+      cleanedContent += content[i]
+    }
+  }
+  
+  // Заменяем множественные пробелы на один
+  cleanedContent = cleanedContent.replace(/\s+/g, ' ').trim()
+  
+  // Если после очистки контент стал слишком коротким, считаем его недоступным
+  if (cleanedContent.length < 50) {
+    return 'Контент новости недоступен или поврежден. Рекомендуется прочитать оригинальную статью.'
+  }
+  
+  return cleanText(cleanedContent)
+}
+
 // Функция для валидации URL изображения
 const isValidImageUrl = (url) => {
   if (!url) return false
@@ -660,6 +728,14 @@ const isValidImageUrl = (url) => {
 
 
 const openNews = (news) => {
+  console.log('Открываем новость:', {
+    id: news.id,
+    title: news.title,
+    description: news.description,
+    content: news.content ? news.content.substring(0, 200) + '...' : 'Нет контента',
+    url: news.url
+  })
+  
   selectedNews.value = news
   showNewsDialog.value = true
 }
@@ -740,6 +816,31 @@ const getCategoryIcon = (iconName) => {
     'alert-triangle': 'warning'
   }
   return iconMap[iconName] || 'info'
+}
+
+
+// Функция для проверки, является ли контент поврежденным
+const isContentCorrupted = (content) => {
+  if (!content) return false
+  
+  let nonPrintableCount = 0
+  const totalLength = content.length
+  
+  // Подсчитываем непечатаемые символы вручную
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    // Проверяем диапазоны непечатаемых символов
+    if ((charCode >= 0 && charCode <= 8) || // \u0000-\u0008
+        charCode === 11 || // \u000B
+        charCode === 12 || // \u000C
+        (charCode >= 14 && charCode <= 31) || // \u000E-\u001F
+        (charCode >= 127 && charCode <= 159)) { // \u007F-\u009F
+      nonPrintableCount++
+    }
+  }
+  
+  // Если более 20% символов непечатаемые, считаем контент поврежденным
+  return nonPrintableCount / totalLength > 0.2
 }
 
 // Жизненный цикл
@@ -890,6 +991,30 @@ onMounted(() => {
 .q-btn {
   &.q-btn--disabled {
     opacity: 0.5;
+  }
+}
+
+// Стили для полного текста новости
+.news-content {
+  border-top: 1px solid var(--border-primary);
+  padding-top: 16px;
+  
+  .news-content-text {
+    line-height: 1.6;
+    text-align: justify;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    
+    // Стили для сообщения об ошибке контента
+    &.error-content {
+      background-color: var(--q-orange-1);
+      border: 1px solid var(--q-orange-3);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: var(--q-orange-8);
+      font-style: italic;
+    }
   }
 }
 </style>
