@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -24,21 +25,54 @@ type RSSParser struct {
 }
 
 // NewRSSParser создает новый парсер RSS лент
-func NewRSSParser(cfg *config.ParsingConfig, logger *logrus.Logger) *RSSParser {
+func NewRSSParser(cfg *config.ParsingConfig, proxyConfig *config.ProxyConfig, logger *logrus.Logger) *RSSParser {
 	// Настройка HTTP клиента
-	client := &http.Client{
-		Timeout: cfg.RequestTimeout,
-		Transport: &http.Transport{
+	var transport *http.Transport
+
+	if proxyConfig != nil && proxyConfig.Enabled && proxyConfig.URL != "" {
+		// Настройка прокси
+		proxyURL, err := url.Parse(proxyConfig.URL)
+		if err != nil {
+			logger.WithError(err).Error("Failed to parse proxy URL for RSS parser")
+			transport = &http.Transport{
+				MaxIdleConns:        10,
+				IdleConnTimeout:     30 * time.Second,
+				DisableCompression:  false,
+				MaxIdleConnsPerHost: 2,
+			}
+		} else {
+			// Добавляем аутентификацию, если указана
+			if proxyConfig.Username != "" && proxyConfig.Password != "" {
+				proxyURL.User = url.UserPassword(proxyConfig.Username, proxyConfig.Password)
+			}
+
+			transport = &http.Transport{
+				Proxy:               http.ProxyURL(proxyURL),
+				MaxIdleConns:        10,
+				IdleConnTimeout:     30 * time.Second,
+				DisableCompression:  false,
+				MaxIdleConnsPerHost: 2,
+			}
+
+			logger.WithField("proxy_url", proxyConfig.URL).Info("Using proxy for RSS parsing")
+		}
+	} else {
+		transport = &http.Transport{
 			MaxIdleConns:        10,
 			IdleConnTimeout:     30 * time.Second,
 			DisableCompression:  false,
 			MaxIdleConnsPerHost: 2,
-		},
+		}
 	}
-	
+
+	client := &http.Client{
+		Timeout:   cfg.RequestTimeout,
+		Transport: transport,
+	}
+
 	// Создание парсера gofeed
 	parser := gofeed.NewParser()
-	
+
 	return &RSSParser{
 		client: client,
 		parser: parser,
@@ -50,20 +84,20 @@ func NewRSSParser(cfg *config.ParsingConfig, logger *logrus.Logger) *RSSParser {
 // ParseFeed парсит RSS ленту из указанного источника
 func (p *RSSParser) ParseFeed(ctx context.Context, source models.NewsSource) models.FeedParseResult {
 	startTime := time.Now()
-	
+
 	result := models.FeedParseResult{
-		SourceID:  source.ID,
-		ParsedAt:  startTime,
-		Success:   false,
-		Items:     []models.ParsedFeedItem{},
+		SourceID: source.ID,
+		ParsedAt: startTime,
+		Success:  false,
+		Items:    []models.ParsedFeedItem{},
 	}
-	
+
 	p.logger.WithFields(logrus.Fields{
 		"source_id":   source.ID,
 		"source_name": source.Name,
 		"rss_url":     source.RSSURL,
 	}).Debug("Starting RSS feed parsing")
-	
+
 	// Создание HTTP запроса
 	req, err := http.NewRequestWithContext(ctx, "GET", source.RSSURL, nil)
 	if err != nil {
@@ -71,13 +105,13 @@ func (p *RSSParser) ParseFeed(ctx context.Context, source models.NewsSource) mod
 		result.ExecutionTime = time.Since(startTime)
 		return result
 	}
-	
+
 	// Установка заголовков
 	req.Header.Set("User-Agent", p.config.UserAgent)
 	req.Header.Set("Accept", "application/rss+xml, application/xml, text/xml")
 	req.Header.Set("Accept-Charset", "utf-8")
 	req.Header.Set("Cache-Control", "no-cache")
-	
+
 	// Выполнение HTTP запроса
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -86,24 +120,24 @@ func (p *RSSParser) ParseFeed(ctx context.Context, source models.NewsSource) mod
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	// Проверка статуса ответа
 	if resp.StatusCode != http.StatusOK {
 		result.Error = fmt.Sprintf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 		result.ExecutionTime = time.Since(startTime)
 		return result
 	}
-	
+
 	// Проверка размера ответа
 	if resp.ContentLength > p.config.MaxFeedSize {
 		result.Error = fmt.Sprintf("feed size too large: %d bytes", resp.ContentLength)
 		result.ExecutionTime = time.Since(startTime)
 		return result
 	}
-	
+
 	// Ограничение размера читаемых данных
 	limitedReader := io.LimitReader(resp.Body, p.config.MaxFeedSize)
-	
+
 	// Парсинг RSS ленты
 	feed, err := p.parser.Parse(limitedReader)
 	if err != nil {
@@ -111,34 +145,34 @@ func (p *RSSParser) ParseFeed(ctx context.Context, source models.NewsSource) mod
 		result.ExecutionTime = time.Since(startTime)
 		return result
 	}
-	
+
 	// Обработка элементов ленты
 	items := p.processFeedItems(feed, source)
-	
+
 	result.Items = items
 	result.Success = true
 	result.ExecutionTime = time.Since(startTime)
-	
+
 	p.logger.WithFields(logrus.Fields{
 		"source_id":      source.ID,
 		"source_name":    source.Name,
 		"items_count":    len(items),
 		"execution_time": result.ExecutionTime,
 	}).Info("Successfully parsed RSS feed")
-	
+
 	return result
 }
 
 // processFeedItems обрабатывает элементы RSS ленты
 func (p *RSSParser) processFeedItems(feed *gofeed.Feed, source models.NewsSource) []models.ParsedFeedItem {
 	var items []models.ParsedFeedItem
-	
+
 	for _, item := range feed.Items {
 		// Пропускаем элементы без заголовка или ссылки
 		if item.Title == "" || item.Link == "" {
 			continue
 		}
-		
+
 		// Валидация длины заголовка
 		title := strings.TrimSpace(item.Title)
 		if len(title) < p.config.MinTitleLength || len(title) > p.config.MaxTitleLength {
@@ -149,7 +183,7 @@ func (p *RSSParser) processFeedItems(feed *gofeed.Feed, source models.NewsSource
 			}).Debug("Skipping item with invalid title length")
 			continue
 		}
-		
+
 		// Определение времени публикации
 		publishedTime := time.Now()
 		if item.PublishedParsed != nil {
@@ -157,25 +191,25 @@ func (p *RSSParser) processFeedItems(feed *gofeed.Feed, source models.NewsSource
 		} else if item.UpdatedParsed != nil {
 			publishedTime = *item.UpdatedParsed
 		}
-		
+
 		// Извлечение описания
 		description := ""
 		if item.Description != "" {
 			description = p.cleanHTMLContent(item.Description)
 		}
-		
+
 		// Извлечение контента
 		content := ""
 		if item.Content != "" {
 			content = p.cleanHTMLContent(item.Content)
 		}
-		
+
 		// Извлечение автора
 		author := ""
 		if item.Author != nil && item.Author.Name != "" {
 			author = item.Author.Name
 		}
-		
+
 		// Извлечение изображения
 		imageURL := ""
 		if item.Image != nil && item.Image.URL != "" {
@@ -188,19 +222,19 @@ func (p *RSSParser) processFeedItems(feed *gofeed.Feed, source models.NewsSource
 				}
 			}
 		}
-		
+
 		// Извлечение категорий
 		var categories []string
 		if item.Categories != nil {
 			categories = item.Categories
 		}
-		
+
 		// GUID для дедупликации
 		guid := item.GUID
 		if guid == "" {
 			guid = item.Link
 		}
-		
+
 		parsedItem := models.ParsedFeedItem{
 			Title:       title,
 			Description: description,
@@ -212,21 +246,21 @@ func (p *RSSParser) processFeedItems(feed *gofeed.Feed, source models.NewsSource
 			GUID:        guid,
 			Categories:  categories,
 		}
-		
+
 		items = append(items, parsedItem)
-		
+
 		// Ограничиваем количество обрабатываемых элементов
 		if len(items) >= p.config.BatchSize {
 			break
 		}
 	}
-	
+
 	p.logger.WithFields(logrus.Fields{
 		"source_id":    source.ID,
 		"total_items":  len(feed.Items),
 		"parsed_items": len(items),
 	}).Debug("Processed feed items")
-	
+
 	return items
 }
 
@@ -238,7 +272,7 @@ func (p *RSSParser) cleanHTMLContent(content string) string {
 	content = strings.ReplaceAll(content, "<br/>", "\n")
 	content = strings.ReplaceAll(content, "<br />", "\n")
 	content = strings.ReplaceAll(content, "</p>", "\n\n")
-	
+
 	// Удаление HTML тегов (простая реализация)
 	for strings.Contains(content, "<") && strings.Contains(content, ">") {
 		start := strings.Index(content, "<")
@@ -248,7 +282,7 @@ func (p *RSSParser) cleanHTMLContent(content string) string {
 		}
 		content = content[:start] + content[start+end+1:]
 	}
-	
+
 	// Очистка от лишних пробелов и переносов
 	lines := strings.Split(content, "\n")
 	var cleanLines []string
@@ -258,14 +292,14 @@ func (p *RSSParser) cleanHTMLContent(content string) string {
 			cleanLines = append(cleanLines, line)
 		}
 	}
-	
+
 	result := strings.Join(cleanLines, "\n")
-	
+
 	// Ограничиваем длину контента
 	if len(result) > 10000 {
 		result = result[:10000] + "..."
 	}
-	
+
 	return result
 }
 
@@ -275,27 +309,27 @@ func (p *RSSParser) ValidateFeed(ctx context.Context, rssURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("User-Agent", p.config.UserAgent)
 	req.Header.Set("Accept", "application/rss+xml, application/xml, text/xml")
-	
+
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch RSS feed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 	}
-	
+
 	// Проверяем, что это валидный RSS/XML
 	limitedReader := io.LimitReader(resp.Body, 1024*1024) // 1MB для проверки
 	_, err = p.parser.Parse(limitedReader)
 	if err != nil {
 		return fmt.Errorf("invalid RSS feed format: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -305,26 +339,26 @@ func (p *RSSParser) GetFeedInfo(ctx context.Context, rssURL string) (*gofeed.Fee
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("User-Agent", p.config.UserAgent)
 	req.Header.Set("Accept", "application/rss+xml, application/xml, text/xml")
-	
+
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch RSS feed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 	}
-	
+
 	limitedReader := io.LimitReader(resp.Body, p.config.MaxFeedSize)
 	feed, err := p.parser.Parse(limitedReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse RSS feed: %w", err)
 	}
-	
+
 	return feed, nil
 }
 

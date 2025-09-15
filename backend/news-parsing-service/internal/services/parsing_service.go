@@ -3,11 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/robfig/cron/v3"
@@ -16,26 +14,24 @@ import (
 	"news-parsing-service/internal/config"
 	"news-parsing-service/internal/models"
 	"news-parsing-service/internal/repository"
-	"news-parsing-service/internal/utils"
 )
 
 // ParsingService представляет сервис парсинга новостей
 type ParsingService struct {
-	rssParser                *RSSParser
-	newsSourceRepo           *repository.NewsSourceRepository
-	newsRepo                 *repository.NewsRepository
-	parsingLogRepo           *repository.ParsingLogRepository
-	config                   *config.ParsingConfig
-	logger                   *logrus.Logger
-	cron                     *cron.Cron
-	isRunning                bool
-	mu                       sync.RWMutex
-	semaphore                chan struct{}
-	countryDetector          *CountryDetector
-	contentExtractor         *ContentExtractor
-	deepSeekContentExtractor *DeepSeekContentExtractor
-	deepSeekNewsClassifier   *DeepSeekNewsClassifier
-	deepSeekUnifiedProcessor *DeepSeekUnifiedProcessor
+	rssParser            *RSSParser
+	newsSourceRepo       *repository.NewsSourceRepository
+	newsRepo             *repository.NewsRepository
+	parsingLogRepo       *repository.ParsingLogRepository
+	config               *config.ParsingConfig
+	logger               *logrus.Logger
+	cron                 *cron.Cron
+	isRunning            bool
+	mu                   sync.RWMutex
+	semaphore            chan struct{}
+	countryDetector      *CountryDetector
+	contentExtractor     *ContentExtractor
+	simpleNewsClassifier *SimpleNewsClassifier
+	aiClassifier         *AIClassifier
 }
 
 // NewParsingService создает новый сервис парсинга
@@ -57,32 +53,47 @@ func NewParsingService(
 	// Создаем детектор стран
 	countryDetector := NewCountryDetector(logger)
 
-	// Создаем извлекатель контента (упрощенный)
-	contentExtractor := NewContentExtractor(logger, nil)
+	// Создаем извлекатель контента
+	contentExtractor, err := NewContentExtractor(logger, nil)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create content extractor")
+		return nil
+	}
 
-	// Создаем DeepSeek-извлекатель контента
-	deepSeekContentExtractor := NewDeepSeekContentExtractor(fullConfig.DeepSeekAPIKey, logger)
+	// Создаем классификатор новостей
+	simpleNewsClassifier := NewSimpleNewsClassifier(logger)
 
-	// Создаем DeepSeek-классификатор новостей
-	deepSeekNewsClassifier := NewDeepSeekNewsClassifier(fullConfig.DeepSeekAPIKey, logger)
+	// Создаем AI классификатор
+	ollamaURL := "http://ollama:11434"
+	model := "hf.co/Vikhrmodels/Vikhr-Llama-3.2-1B-instruct-GGUF:Q4_K_M"
+	timeout := 60 * time.Second
 
-	// Создаем объединенный DeepSeek-процессор
-	deepSeekUnifiedProcessor := NewDeepSeekUnifiedProcessor(fullConfig.DeepSeekAPIKey, logger)
+	if fullConfig != nil {
+		if fullConfig.AI.OllamaURL != "" {
+			ollamaURL = fullConfig.AI.OllamaURL
+		}
+		if fullConfig.AI.Model != "" {
+			model = fullConfig.AI.Model
+		}
+		if fullConfig.AI.Timeout > 0 {
+			timeout = fullConfig.AI.Timeout
+		}
+	}
+	aiClassifier := NewAIClassifier(ollamaURL, model, timeout, fullConfig.AI.Temperature, logger)
 
 	return &ParsingService{
-		rssParser:                rssParser,
-		newsSourceRepo:           newsSourceRepo,
-		newsRepo:                 newsRepo,
-		parsingLogRepo:           parsingLogRepo,
-		config:                   parsingConfig,
-		logger:                   logger,
-		cron:                     cronScheduler,
-		semaphore:                semaphore,
-		countryDetector:          countryDetector,
-		contentExtractor:         contentExtractor,
-		deepSeekContentExtractor: deepSeekContentExtractor,
-		deepSeekNewsClassifier:   deepSeekNewsClassifier,
-		deepSeekUnifiedProcessor: deepSeekUnifiedProcessor,
+		rssParser:            rssParser,
+		newsSourceRepo:       newsSourceRepo,
+		newsRepo:             newsRepo,
+		parsingLogRepo:       parsingLogRepo,
+		config:               parsingConfig,
+		logger:               logger,
+		cron:                 cronScheduler,
+		semaphore:            semaphore,
+		countryDetector:      countryDetector,
+		contentExtractor:     contentExtractor,
+		simpleNewsClassifier: simpleNewsClassifier,
+		aiClassifier:         aiClassifier,
 	}
 }
 
@@ -205,7 +216,7 @@ func (s *ParsingService) parseSource(ctx context.Context, source models.NewsSour
 	}
 
 	if !result.Success {
-		logger.WithError(fmt.Errorf(result.Error)).Error("Failed to parse RSS feed")
+		logger.WithError(fmt.Errorf("RSS parsing failed: %s", result.Error)).Error("Failed to parse RSS feed")
 		return
 	}
 
@@ -255,10 +266,11 @@ func (s *ParsingService) parseSource(ctx context.Context, source models.NewsSour
 // processItems обрабатывает элементы из RSS ленты и конвертирует их в новости
 func (s *ParsingService) processItems(ctx context.Context, items []models.ParsedFeedItem, source models.NewsSource) ([]models.News, error) {
 	var newsList []models.News
-	var itemsForUnifiedProcessing []UnifiedNewsItem
+	var itemsForClassification []UnifiedNewsItem
+	var validItems []models.ParsedFeedItem
 
-	// Сначала обрабатываем все элементы и собираем те, которые нуждаются в обработке
-	for i, item := range items {
+	// Сначала фильтруем элементы и собираем те, которые нуждаются в обработке
+	for _, item := range items {
 		// Проверяем, существует ли уже такая новость
 		if s.config.EnableDeduplication {
 			exists, err := s.newsRepo.ExistsByURL(ctx, item.Link, source.ID)
@@ -271,9 +283,12 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Собираем элементы для объединенной обработки (классификация + извлечение контента)
-		itemsForUnifiedProcessing = append(itemsForUnifiedProcessing, UnifiedNewsItem{
-			Index:       i,
+		// Добавляем элемент в список валидных
+		validItems = append(validItems, item)
+
+		// Собираем элементы для классификации
+		itemsForClassification = append(itemsForClassification, UnifiedNewsItem{
+			Index:       len(validItems) - 1,
 			Title:       item.Title,
 			Description: item.Description,
 			Content:     item.Content,
@@ -282,93 +297,154 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 		})
 	}
 
-	// Выполняем объединенную обработку через DeepSeek
-	unifiedResults := make(map[int]UnifiedProcessingResult)
-	if len(itemsForUnifiedProcessing) > 0 {
-		s.logger.WithField("items_count", len(itemsForUnifiedProcessing)).Info("Performing unified DeepSeek processing")
+	// Выполняем классификацию новостей с повторными попытками
+	classificationResults := make(map[int]UnifiedProcessingResult)
+	if len(itemsForClassification) > 0 {
+		s.logger.WithField("items_count", len(itemsForClassification)).Info("Performing news classification")
 
-		results, err := s.deepSeekUnifiedProcessor.ProcessNewsBatch(ctx, itemsForUnifiedProcessing)
-		if err != nil {
-			s.logger.WithError(err).Warn("Unified DeepSeek processing failed")
-		} else {
-			// Создаем карту результатов объединенной обработки
-			for _, result := range results {
-				if result.Error == nil {
-					unifiedResults[result.Index] = result
-					s.logger.WithFields(logrus.Fields{
-						"index":          result.Index,
-						"title":          truncateForLog(result.Title, 50),
-						"content_length": len(result.Content),
-						"category_id":    result.CategoryID,
-						"confidence":     result.Confidence,
-					}).Info("DeepSeek unified processed news")
+		// Сначала пробуем AI классификатор
+		var results []UnifiedProcessingResult
+		var err error
+
+		if s.aiClassifier != nil {
+			s.logger.Info("Using AI classifier (Ollama)")
+			results, err = s.aiClassifier.ProcessNewsBatch(ctx, itemsForClassification)
+			if err != nil {
+				s.logger.WithError(err).Warn("AI classification failed, trying simple classifier")
+				// Если AI не работает, пробуем простой классификатор
+				if s.simpleNewsClassifier != nil {
+					results, err = s.simpleNewsClassifier.ProcessNewsBatch(ctx, itemsForClassification)
+				}
+			} else {
+				// Проверяем результаты AI классификации
+				var retryItems []UnifiedNewsItem
+				for i, result := range results {
+					if result.Error != nil || result.CategoryID == 0 {
+						s.logger.WithFields(logrus.Fields{
+							"index": result.Index,
+							"title": truncateForLog(result.Title, 50),
+							"error": result.Error,
+						}).Warn("AI classification failed for item, will retry with simple classifier")
+						retryItems = append(retryItems, itemsForClassification[i])
+					} else {
+						classificationResults[result.Index] = result
+						s.logger.WithFields(logrus.Fields{
+							"index":       result.Index,
+							"title":       truncateForLog(result.Title, 50),
+							"category_id": result.CategoryID,
+							"confidence":  result.Confidence,
+						}).Info("News classified with AI")
+					}
+				}
+
+				// Если есть элементы для повторной попытки, пробуем простой классификатор
+				if len(retryItems) > 0 && s.simpleNewsClassifier != nil {
+					s.logger.WithField("retry_count", len(retryItems)).Info("Retrying failed items with simple classifier")
+					retryResults, retryErr := s.simpleNewsClassifier.ProcessNewsBatch(ctx, retryItems)
+					if retryErr != nil {
+						s.logger.WithError(retryErr).Warn("Simple classifier retry also failed")
+					} else {
+						// Добавляем успешные результаты повторной попытки
+						for _, result := range retryResults {
+							if result.Error == nil && result.CategoryID > 0 {
+								classificationResults[result.Index] = result
+								s.logger.WithFields(logrus.Fields{
+									"index":       result.Index,
+									"title":       truncateForLog(result.Title, 50),
+									"category_id": result.CategoryID,
+									"confidence":  result.Confidence,
+								}).Info("News classified with simple classifier retry")
+							} else {
+								s.logger.WithFields(logrus.Fields{
+									"index": result.Index,
+									"title": truncateForLog(result.Title, 50),
+									"error": result.Error,
+								}).Warn("Simple classifier retry also failed for item")
+							}
+						}
+					}
+				}
+			}
+		} else if s.simpleNewsClassifier != nil {
+			s.logger.Info("Using simple classifier")
+			results, err = s.simpleNewsClassifier.ProcessNewsBatch(ctx, itemsForClassification)
+			if err != nil {
+				s.logger.WithError(err).Warn("Simple classification failed")
+			} else {
+				// Проверяем результаты простой классификации
+				for _, result := range results {
+					if result.Error == nil && result.CategoryID > 0 {
+						classificationResults[result.Index] = result
+						s.logger.WithFields(logrus.Fields{
+							"index":       result.Index,
+							"title":       truncateForLog(result.Title, 50),
+							"category_id": result.CategoryID,
+							"confidence":  result.Confidence,
+						}).Info("News classified with simple classifier")
+					} else {
+						s.logger.WithFields(logrus.Fields{
+							"index": result.Index,
+							"title": truncateForLog(result.Title, 50),
+							"error": result.Error,
+						}).Warn("Simple classification failed for item")
+					}
 				}
 			}
 		}
 	}
 
-	// Теперь создаем новости с правильными категориями и извлеченным контентом
-	for i, item := range items {
-		// Проверяем, существует ли уже такая новость
-		if s.config.EnableDeduplication {
-			exists, err := s.newsRepo.ExistsByURL(ctx, item.Link, source.ID)
-			if err != nil {
-				s.logger.WithError(err).Warn("Failed to check news existence")
-				continue
-			}
-			if exists {
-				continue
-			}
+	// Теперь создаем новости только с успешно определенными категориями
+	for i, item := range validItems {
+		// Проверяем, есть ли результат классификации для этого элемента
+		result, exists := classificationResults[i]
+		if !exists || result.CategoryID == 0 {
+			s.logger.WithFields(logrus.Fields{
+				"index": i,
+				"title": truncateForLog(item.Title, 50),
+				"url":   item.Link,
+			}).Warn("Skipping news item - no valid category determined")
+			continue
 		}
 
-		// Используем результат объединенной обработки
-		var categoryID *int
+		categoryID := &result.CategoryID
+
+		// Извлекаем полный контент
 		var fullContent string
 		var contentSource string
 
-		if unifiedResult, exists := unifiedResults[i]; exists {
-			// Используем результаты от объединенного процессора
-			categoryID = &unifiedResult.CategoryID
-			fullContent = unifiedResult.Content
-			contentSource = "unified_ai_processing"
-
-			s.logger.WithFields(logrus.Fields{
-				"url":            item.Link,
-				"content_length": len(fullContent),
-				"source":         contentSource,
-				"category_id":    categoryID,
-			}).Debug("Using unified AI processing results")
-		} else {
-			// Fallback: используем старую логику
-			defaultCategory := models.CategoryPolitics
-			categoryID = &defaultCategory
-			fullContent = item.Content
-			contentSource = "rss_content"
-
-			// Если AI-извлечение не удалось, пробуем извлечь с веб-страницы (fallback)
-			if fullContent == "" && s.contentExtractor.IsValidURL(item.Link) {
-				if extractedContent, err := s.contentExtractor.ExtractFullContent(ctx, item.Link); err == nil && extractedContent != "" {
-					fullContent = extractedContent
-					contentSource = "web_extraction"
-					s.logger.WithFields(logrus.Fields{
-						"url":            item.Link,
-						"content_length": len(extractedContent),
-						"source":         contentSource,
-					}).Debug("Extracted full content from web page")
-				}
+		// Пробуем извлечь контент с веб-страницы
+		if s.contentExtractor != nil && s.contentExtractor.IsValidURL(item.Link) {
+			s.logger.WithField("url", item.Link).Debug("Attempting to extract content with go-readability")
+			if extractedContent, err := s.contentExtractor.ExtractFullContent(ctx, item.Link); err == nil && extractedContent != "" {
+				fullContent = extractedContent
+				contentSource = "web_extraction"
+				s.logger.WithFields(logrus.Fields{
+					"url":            item.Link,
+					"content_length": len(extractedContent),
+					"source":         contentSource,
+				}).Info("Successfully extracted full content from web page")
+			} else {
+				s.logger.WithFields(logrus.Fields{
+					"url":   item.Link,
+					"error": err,
+				}).Warn("Failed to extract content from web page")
 			}
+		}
 
-			// Если и описания нет, используем описание из RSS
-			if fullContent == "" {
+		// Если извлечение с веб-страницы не удалось, используем описание из RSS
+		if fullContent == "" {
+			fullContent = item.Description
+			contentSource = "rss_description"
+		}
+
+		// Если и описания нет, используем контент из RSS
+		if fullContent == "" {
+			if item.Content != "" {
+				fullContent = item.Content
+			} else {
 				fullContent = item.Description
-				contentSource = "rss_description"
 			}
-
-			// Если и описания нет, используем контент из RSS
-			if fullContent == "" {
-				fullContent = s.contentExtractor.ExtractContentFromRSS(item.Description, item.Content)
-				contentSource = "rss_content"
-			}
+			contentSource = "rss_content"
 		}
 
 		// Определяем страну по контенту
@@ -377,14 +453,14 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			detectedCountry = s.countryDetector.DetectCountry(item.Title, item.Description, fullContent)
 		}
 
-		// Создаем объект новости с очисткой UTF-8
+		// Создаем объект новости
 		news := models.News{
-			Title:          cleanUTF8(item.Title),
-			Description:    cleanUTF8(item.Description),
-			Content:        cleanUTF8(fullContent),
+			Title:          item.Title,
+			Description:    item.Description,
+			Content:        fullContent,
 			URL:            item.Link,
 			ImageURL:       item.ImageURL,
-			Author:         cleanUTF8(item.Author),
+			Author:         item.Author,
 			SourceID:       source.ID,
 			CategoryID:     categoryID,
 			PublishedAt:    item.Published,
@@ -567,65 +643,6 @@ func extractDomainFromURL(url string) string {
 	return url
 }
 
-// shouldUseAIClassifier определяет, нужно ли использовать AI-классификатор
-func (s *ParsingService) shouldUseAIClassifier(categoryID *int, title, description string) bool {
-	// Если категория не определена, используем AI
-	if categoryID == nil {
-		return true
-	}
-
-	// Если категория "Наука и техника" (ID=4), но заголовок содержит политические ключевые слова
-	if *categoryID == 4 {
-		politicalKeywords := []string{
-			"президент", "премьер", "министр", "правительство", "парламент", "выборы",
-			"политика", "дипломатия", "санкции", "соглашение", "договор", "переговоры",
-			"кремль", "белый дом", "конгресс", "сенат", "нато", "ес", "оон",
-			"война", "конфликт", "мир", "безопасность", "оборона", "военные",
-			"экономика", "торговля", "бизнес", "финансы", "инвестиции",
-		}
-
-		text := strings.ToLower(title + " " + description)
-		for _, keyword := range politicalKeywords {
-			if strings.Contains(text, keyword) {
-				s.logger.WithFields(logrus.Fields{
-					"title":       title,
-					"category_id": *categoryID,
-					"keyword":     keyword,
-				}).Info("Detected political content in science category, will use AI classifier")
-				return true
-			}
-		}
-	}
-
-	// Если категория "Спорт" (ID=13), но заголовок не содержит спортивных ключевых слов
-	if *categoryID == 13 {
-		sportKeywords := []string{
-			"футбол", "хоккей", "баскетбол", "теннис", "бокс", "олимпиада", "чемпионат",
-			"спорт", "игра", "матч", "команда", "игрок", "тренер", "стадион",
-			"нхл", "нба", "фнл", "уефа", "фифа", "молодежка", "юниор",
-		}
-
-		text := strings.ToLower(title + " " + description)
-		hasSportKeyword := false
-		for _, keyword := range sportKeywords {
-			if strings.Contains(text, keyword) {
-				hasSportKeyword = true
-				break
-			}
-		}
-
-		if !hasSportKeyword {
-			s.logger.WithFields(logrus.Fields{
-				"title":       title,
-				"category_id": *categoryID,
-			}).Info("Sport category assigned but no sport keywords found, will use AI classifier")
-			return true
-		}
-	}
-
-	return false
-}
-
 // extractImageFromFeed извлекает URL изображения из RSS ленты
 func extractImageFromFeed(feed *gofeed.Feed) string {
 	if feed.Image != nil && feed.Image.URL != "" {
@@ -636,35 +653,19 @@ func extractImageFromFeed(feed *gofeed.Feed) string {
 	return ""
 }
 
-// cleanUTF8 очищает текст от невалидных UTF-8 символов
-func cleanUTF8(text string) string {
-	if text == "" {
-		return text
+// ExtractContent извлекает контент с веб-страницы
+func (s *ParsingService) ExtractContent(url string) (string, error) {
+	if s.contentExtractor == nil {
+		return "", fmt.Errorf("content extractor not initialized")
 	}
 
-	// Сначала проверяем и исправляем UTF-8
-	if !utf8.ValidString(text) {
-		text = strings.ToValidUTF8(text, " ")
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	content, err := s.contentExtractor.ExtractFullContent(ctx, url)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract content: %w", err)
 	}
 
-	// Удаляем непечатаемые символы и управляющие символы
-	var result strings.Builder
-	for _, r := range text {
-		// Проверяем, является ли символ печатаемым
-		if utils.IsPrintableRune(r) {
-			result.WriteRune(r)
-		} else if r == '\n' || r == '\r' || r == '\t' {
-			// Сохраняем основные пробельные символы
-			result.WriteRune(r)
-		} else {
-			// Заменяем непечатаемые символы на пробел
-			result.WriteRune(' ')
-		}
-	}
-
-	// Очищаем множественные пробелы
-	cleaned := strings.TrimSpace(result.String())
-	cleaned = regexp.MustCompile(`\s+`).ReplaceAllString(cleaned, " ")
-
-	return cleaned
+	return content, nil
 }

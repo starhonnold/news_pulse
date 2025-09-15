@@ -51,7 +51,7 @@ func main() {
 	parsingLogRepo := repository.NewParsingLogRepository(db, logger)
 
 	// Создание сервисов
-	rssParser := services.NewRSSParser(&cfg.Parsing, logger)
+	rssParser := services.NewRSSParser(&cfg.Parsing, &cfg.Proxy, logger)
 	parsingService := services.NewParsingService(
 		rssParser,
 		newsSourceRepo,

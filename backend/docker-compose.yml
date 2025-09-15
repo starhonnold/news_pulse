@@ -80,9 +80,9 @@ services:
     container_name: news_pulse_parsing_service
     restart: unless-stopped
     ports:
-      - "${NEWS_PARSING_PORT:-8081}:8081"
-      - "${NEWS_PARSING_HEALTH_PORT:-8091}:8091"
-      - "${NEWS_PARSING_METRICS_PORT:-9091}:9091"
+      - "${NEWS_PARSING_PORT:-8085}:8081"
+      - "${NEWS_PARSING_HEALTH_PORT:-8095}:8091"
+      - "${NEWS_PARSING_METRICS_PORT:-9095}:9091"
     environment:
       - APP_ENV=${APP_ENV:-production}
       - POSTGRES_HOST=postgres
@@ -94,8 +94,15 @@ services:
       - RSS_MAX_CONCURRENT_PARSERS=${RSS_MAX_CONCURRENT_PARSERS:-5}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+                  - GOOGLE_AI_API_KEY=AIzaSyCjdX3fkQFnTa2viTxb4rSUNBFfHZwdG6E
+      - PROXY_ENABLED=${PROXY_ENABLED:-false}
+      - PROXY_URL=${PROXY_URL:-http://195.96.157.223:9765}
+      - PROXY_USERNAME=${PROXY_USERNAME:-user322683}
+      - PROXY_PASSWORD=${PROXY_PASSWORD:-97fgob}
+      - OLLAMA_URL=http://ollama:11434
     depends_on:
       - postgres
+      - ollama
     networks:
       - news_pulse_network
     # healthcheck:
@@ -178,6 +185,34 @@ services:
     volumes:
       - pulse_logs:/var/log
 
+  # Ollama AI сервис для классификации новостей
+  ollama:
+    image: ollama/ollama:latest
+    container_name: news_pulse_ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - news_pulse_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   # PostgreSQL база данных
   postgres:
     image: postgres:15-alpine
@@ -189,7 +224,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-news_pulse_secure_password_2024}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       # Данные базы данных
       - postgres_data:/var/lib/postgresql/data
@@ -219,6 +254,9 @@ volumes:
   postgres_data:
     driver: local
     name: news_pulse_postgres_data
+  ollama_data:
+    driver: local
+    name: news_pulse_ollama_data
   parsing_logs:
     driver: local
     name: news_pulse_parsing_logs

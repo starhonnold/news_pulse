@@ -10,15 +10,15 @@ import (
 
 // Config представляет конфигурацию сервиса парсинга новостей
 type Config struct {
-	Server         ServerConfig   `yaml:"server"`
-	Database       DatabaseConfig `yaml:"database"`
-	Parsing        ParsingConfig  `yaml:"parsing"`
-	Logging        LoggingConfig  `yaml:"logging"`
-	Health         HealthConfig   `yaml:"health"`
-	Metrics        MetricsConfig  `yaml:"metrics"`
-	OpenAIAPIKey   string         `yaml:"openai_api_key"`
-	DeepSeekAPIKey string         `yaml:"deepseek_api_key"`
-	Environment    string         `yaml:"-"`
+	Server      ServerConfig   `yaml:"server"`
+	Database    DatabaseConfig `yaml:"database"`
+	Parsing     ParsingConfig  `yaml:"parsing"`
+	Logging     LoggingConfig  `yaml:"logging"`
+	Health      HealthConfig   `yaml:"health"`
+	Metrics     MetricsConfig  `yaml:"metrics"`
+	Proxy       ProxyConfig    `yaml:"proxy"`
+	AI          AIConfig       `yaml:"ai"`
+	Environment string         `yaml:"-"`
 }
 
 // ServerConfig конфигурация HTTP сервера
@@ -75,6 +75,23 @@ type MetricsConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	Port    int    `yaml:"port"`
 	Path    string `yaml:"path"`
+}
+
+// ProxyConfig конфигурация прокси
+type ProxyConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	URL      string `yaml:"url"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+// AIConfig конфигурация AI классификатора
+type AIConfig struct {
+	OllamaURL     string        `yaml:"ollama_url"`
+	Model         string        `yaml:"model"`
+	Timeout       time.Duration `yaml:"timeout"`
+	MaxConcurrent int           `yaml:"max_concurrent"`
+	Temperature   float64       `yaml:"temperature"`
 }
 
 // LoadConfig загружает конфигурацию из файла и переменных окружения
@@ -169,14 +186,41 @@ func (c *Config) overrideFromEnv() {
 		c.Logging.Output = output
 	}
 
-	// OpenAI API Key
-	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
-		c.OpenAIAPIKey = apiKey
+	// Proxy configuration
+	if enabled := os.Getenv("PROXY_ENABLED"); enabled == "true" {
+		c.Proxy.Enabled = true
+	}
+	if url := os.Getenv("PROXY_URL"); url != "" {
+		c.Proxy.URL = url
+	}
+	if username := os.Getenv("PROXY_USERNAME"); username != "" {
+		c.Proxy.Username = username
+	}
+	if password := os.Getenv("PROXY_PASSWORD"); password != "" {
+		c.Proxy.Password = password
 	}
 
-	// DeepSeek API Key
-	if apiKey := os.Getenv("DEEPSEEK_API_KEY"); apiKey != "" {
-		c.DeepSeekAPIKey = apiKey
+	// AI Configuration
+	if url := os.Getenv("OLLAMA_URL"); url != "" {
+		c.AI.OllamaURL = url
+	}
+	if model := os.Getenv("AI_MODEL"); model != "" {
+		c.AI.Model = model
+	}
+	if timeout := os.Getenv("AI_TIMEOUT"); timeout != "" {
+		if d := parseDuration(timeout, c.AI.Timeout); d > 0 {
+			c.AI.Timeout = d
+		}
+	}
+	if maxConcurrent := os.Getenv("AI_MAX_CONCURRENT"); maxConcurrent != "" {
+		if mc := parseInt(maxConcurrent, c.AI.MaxConcurrent); mc > 0 {
+			c.AI.MaxConcurrent = mc
+		}
+	}
+	if temperature := os.Getenv("AI_TEMPERATURE"); temperature != "" {
+		if t := parseFloat(temperature, c.AI.Temperature); t >= 0 {
+			c.AI.Temperature = t
+		}
 	}
 }
 
@@ -255,6 +299,30 @@ func parseInt(s string, defaultValue int) int {
 
 	var result int
 	if _, err := fmt.Sscanf(s, "%d", &result); err != nil {
+		return defaultValue
+	}
+	return result
+}
+
+func parseDuration(s string, defaultValue time.Duration) time.Duration {
+	if s == "" {
+		return defaultValue
+	}
+
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return defaultValue
+	}
+	return d
+}
+
+func parseFloat(s string, defaultValue float64) float64 {
+	if s == "" {
+		return defaultValue
+	}
+
+	var result float64
+	if _, err := fmt.Sscanf(s, "%f", &result); err != nil {
 		return defaultValue
 	}
 	return result

@@ -496,8 +496,20 @@ func (s *PulseService) CollectPulseNews(ctx context.Context, pulseID string) err
 	// Извлекаем ключевые слова из поля keywords пульса
 	var keywords []string
 	if pulse.Keywords != "" {
-		// Если есть ключевые слова, используем их
-		keywords = extractKeywords(pulse.Keywords)
+		// Если есть ключевые слова, разбиваем их по запятым
+		keywords = strings.Split(pulse.Keywords, ",")
+		// Очищаем от пробелов
+		for i, keyword := range keywords {
+			keywords[i] = strings.TrimSpace(keyword)
+		}
+		// Удаляем пустые ключевые слова
+		var cleanKeywords []string
+		for _, keyword := range keywords {
+			if keyword != "" {
+				cleanKeywords = append(cleanKeywords, keyword)
+			}
+		}
+		keywords = cleanKeywords
 	} else {
 		// Иначе извлекаем из названия и описания
 		keywords = extractKeywords(pulse.Name + " " + pulse.Description)
@@ -509,6 +521,7 @@ func (s *PulseService) CollectPulseNews(ctx context.Context, pulseID string) err
 		"pulse_name":         pulse.Name,
 		"pulse_keywords":     pulse.Keywords,
 		"extracted_keywords": keywords,
+		"keyword_count":      len(keywords),
 		"source_count":       len(sourceIDs),
 		"category_count":     len(categoryIDs),
 		"source_ids":         sourceIDs,
@@ -532,32 +545,35 @@ func (s *PulseService) CollectPulseNews(ctx context.Context, pulseID string) err
 
 	// Создаем динамический SQL запрос
 
-	// Создаем плейсхолдеры для категорий (начинаем с $2, так как $1 - это pulse_id)
-	categoryPlaceholders := make([]string, len(categoryIDs))
-	for i := range categoryIDs {
-		categoryPlaceholders[i] = fmt.Sprintf("$%d", i+2)
-	}
-
-	// Создаем плейсхолдеры для ключевых слов в контенте, заголовке и описании
-	keywordConditions := make([]string, len(keywords))
-	for i := range keywords {
-		contentPlaceholder := fmt.Sprintf("$%d", i*3+2+len(categoryIDs))
-		titlePlaceholder := fmt.Sprintf("$%d", i*3+3+len(categoryIDs))
-		descPlaceholder := fmt.Sprintf("$%d", i*3+4+len(categoryIDs))
-		keywordConditions[i] = fmt.Sprintf("(LOWER(n.content) LIKE %s OR LOWER(n.title) LIKE %s OR LOWER(n.description) LIKE %s)", contentPlaceholder, titlePlaceholder, descPlaceholder)
-	}
-
 	// Строим SQL запрос с учетом категорий пульса
 	var categoryCondition string
-	if len(categoryIDs) > 0 {
-		// Создаем плейсхолдеры для категорий
-		categoryPlaceholders := make([]string, len(categoryIDs))
+	var categoryPlaceholders []string
+
+	if len(categoryIDs) > 0 && len(keywords) == 0 {
+		// Если есть категории, но нет ключевых слов - фильтруем по категориям
+		categoryPlaceholders = make([]string, len(categoryIDs))
 		for i := range categoryIDs {
 			categoryPlaceholders[i] = fmt.Sprintf("$%d", i+2) // +2 потому что $1 это pulse_id
 		}
 		categoryCondition = fmt.Sprintf("AND n.category_id IN (%s)", strings.Join(categoryPlaceholders, ","))
 	} else {
-		categoryCondition = "" // Если нет категорий, берем все новости
+		// Если есть ключевые слова - не фильтруем по категориям, ищем по всему контенту
+		categoryCondition = ""
+	}
+
+	// Создаем плейсхолдеры для ключевых слов в контенте, заголовке и описании
+	keywordConditions := make([]string, len(keywords))
+	argIndex := 2 // Начинаем после pulse_id ($1)
+	if len(categoryIDs) > 0 && len(keywords) == 0 {
+		argIndex += len(categoryIDs) // Если используем категории, добавляем их количество
+	}
+
+	for i := range keywords {
+		contentPlaceholder := fmt.Sprintf("$%d", argIndex)
+		titlePlaceholder := fmt.Sprintf("$%d", argIndex+1)
+		descPlaceholder := fmt.Sprintf("$%d", argIndex+2)
+		keywordConditions[i] = fmt.Sprintf("(LOWER(n.content) LIKE %s OR LOWER(n.title) LIKE %s OR LOWER(n.description) LIKE %s)", contentPlaceholder, titlePlaceholder, descPlaceholder)
+		argIndex += 3 // Каждое ключевое слово использует 3 плейсхолдера
 	}
 
 	// Строим условие для ключевых слов
@@ -590,10 +606,14 @@ func (s *PulseService) CollectPulseNews(ctx context.Context, pulseID string) err
 
 	// Подготавливаем параметры для запроса
 	args := []interface{}{pulseID}
-	// Добавляем категории в параметры
-	for _, categoryID := range categoryIDs {
-		args = append(args, categoryID)
+
+	// Добавляем категории в параметры только если используем фильтр по категориям
+	if len(categoryIDs) > 0 && len(keywords) == 0 {
+		for _, categoryID := range categoryIDs {
+			args = append(args, categoryID)
+		}
 	}
+
 	// Добавляем ключевые слова в параметры (для контента, заголовка и описания)
 	for _, keyword := range keywords {
 		keywordPattern := "%" + strings.ToLower(keyword) + "%"

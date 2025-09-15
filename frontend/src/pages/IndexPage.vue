@@ -86,13 +86,13 @@
                       <q-chip
                         v-for="category in pulse.categories.slice(0, 3)"
                       :key="category.category_id"
-                      :color="category.category_color || 'grey'"
-                      :style="category.category_color ? `background-color: ${category.category_color} !important; border-color: ${category.category_color} !important;` : ''"
+                      :color="'primary'"
+                      :style="`background-color: ${getCategoryColor(category.category_color)} !important; border-color: ${getCategoryColor(category.category_color)} !important;`"
                       text-color="white"
                       dense
                       class="q-mr-xs"
                     >
-                      <q-icon :name="getCategoryIcon(category.category_icon)" class="q-mr-xs" />
+                      <q-icon :name="getCategoryIcon(category.category_icon || category.category_slug)" class="q-mr-xs" />
                       {{ category.category_name }}
                     </q-chip>
                     <span v-if="pulse.categories.length > 3" class="text-caption text-grey-6">
@@ -274,13 +274,13 @@
                           <div class="col-auto">
                             <q-chip
                               v-if="news.category && news.category.name"
-                              :color="news.category.color || 'grey'"
-                              :style="news.category.color ? `background-color: ${news.category.color} !important; border-color: ${news.category.color} !important;` : ''"
+                              :color="'primary'"
+                              :style="`background-color: ${getCategoryColor(news.category.color)} !important; border-color: ${getCategoryColor(news.category.color)} !important;`"
                               text-color="white"
                               dense
                               class="q-ml-sm"
                             >
-                              <q-icon :name="getCategoryIcon(news.category.icon)" class="q-mr-xs" />
+                              <q-icon :name="getCategoryIcon(news.category.icon || news.category.slug)" class="q-mr-xs" />
                               {{ news.category.name }}
                             </q-chip>
                           </div>
@@ -415,7 +415,17 @@
             class="q-mb-md"
           />
 
-          <div class="text-subtitle2 q-mb-sm">Выберите страны: ({{ countries.length }} доступно)</div>
+          <div class="text-subtitle2 q-mb-sm row items-center">
+            <span>Выберите страны: ({{ countries.length }} доступно)</span>
+            <q-checkbox
+              v-if="countries.length > 0"
+              v-model="selectAllCountries"
+              color="primary"
+              size="sm"
+              class="q-ml-sm"
+            />
+          </div>
+          
           <div class="q-mb-md">
             <div v-if="countries.length === 0" class="text-grey-6 text-center q-py-md">
               Загрузка стран...
@@ -436,7 +446,17 @@
             </q-chip>
           </div>
 
-          <div class="text-subtitle2 q-mb-sm">Выберите категории: ({{ categories.length }} доступно)</div>
+          <div class="text-subtitle2 q-mb-sm row items-center">
+            <span>Выберите категории: ({{ categories.length }} доступно)</span>
+            <q-checkbox
+              v-if="categories.length > 0"
+              v-model="selectAllCategories"
+              color="primary"
+              size="sm"
+              class="q-ml-sm"
+            />
+          </div>
+          
           <div class="q-mb-md">
             <div v-if="categories.length === 0" class="text-grey-6 text-center q-py-md">
               Загрузка категорий...
@@ -450,10 +470,10 @@
               clickable
               :color="newPulse.categories.includes(category.id) ? 'primary' : 'grey-3'"
               :text-color="newPulse.categories.includes(category.id) ? 'white' : 'black'"
-              :style="newPulse.categories.includes(category.id) ? `background-color: ${category.color} !important; border-color: ${category.color} !important;` : ''"
+              :style="newPulse.categories.includes(category.id) ? `background-color: ${getCategoryColor(category.color)} !important; border-color: ${getCategoryColor(category.color)} !important;` : ''"
               class="q-ma-xs"
             >
-              <q-icon :name="getCategoryIcon(category.icon)" class="q-mr-xs" />
+              <q-icon :name="getCategoryIcon(category.icon || category.slug)" class="q-mr-xs" />
               {{ category.name }}
             </q-chip>
           </div>
@@ -511,13 +531,13 @@
                   <div class="col-auto">
                     <q-chip
                       v-if="selectedNews.category && selectedNews.category.name"
-                      :color="selectedNews.category.color || 'grey'"
-                      :style="selectedNews.category.color ? `background-color: ${selectedNews.category.color} !important; border-color: ${selectedNews.category.color} !important;` : ''"
+                      :color="'primary'"
+                      :style="`background-color: ${getCategoryColor(selectedNews.category.color)} !important; border-color: ${getCategoryColor(selectedNews.category.color)} !important;`"
                       text-color="white"
                       dense
                       class="q-ml-sm"
                     >
-                      <q-icon :name="getCategoryIcon(selectedNews.category.icon)" class="q-mr-xs" />
+                      <q-icon :name="getCategoryIcon(selectedNews.category.icon || selectedNews.category.slug)" class="q-mr-xs" />
                       {{ selectedNews.category.name }}
                     </q-chip>
                   </div>
@@ -574,7 +594,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { pulseService, referenceService, handleApiError } from 'src/services/api'
 
@@ -601,9 +621,36 @@ const newPulse = ref({
   keywords: '',
 })
 
+// Состояние для выбора всех элементов
+const selectAllCountries = ref(false)
+const selectAllCategories = ref(false)
+
 // Справочные данные
 const countries = ref([])
 const categories = ref([])
+
+// Watch для отслеживания изменений в чекбоксах "Выбрать все"
+watch(selectAllCountries, (newValue) => {
+  console.log('selectAllCountries changed to:', newValue)
+  if (newValue) {
+    newPulse.value.countries = countries.value.map(country => country.id)
+    console.log('Selected all countries:', newPulse.value.countries)
+  } else {
+    newPulse.value.countries = []
+    console.log('Deselected all countries')
+  }
+})
+
+watch(selectAllCategories, (newValue) => {
+  console.log('selectAllCategories changed to:', newValue)
+  if (newValue) {
+    newPulse.value.categories = categories.value.map(category => category.id)
+    console.log('Selected all categories:', newPulse.value.categories)
+  } else {
+    newPulse.value.categories = []
+    console.log('Deselected all categories')
+  }
+})
 
 
 
@@ -699,6 +746,7 @@ function togglePulseCountry(countryId) {
   } else {
     newPulse.value.countries.push(countryId)
   }
+  updateSelectAllCountries()
 }
 
 function togglePulseCategory(categoryId) {
@@ -708,21 +756,94 @@ function togglePulseCategory(categoryId) {
   } else {
     newPulse.value.categories.push(categoryId)
   }
+  updateSelectAllCategories()
+}
+
+
+// Обновление состояния "Выбрать все" для стран
+function updateSelectAllCountries() {
+  selectAllCountries.value = newPulse.value.countries.length === countries.value.length && countries.value.length > 0
+}
+
+// Обновление состояния "Выбрать все" для категорий
+function updateSelectAllCategories() {
+  selectAllCategories.value = newPulse.value.categories.length === categories.value.length && categories.value.length > 0
 }
 
 // Функция для получения правильной иконки категории
 function getCategoryIcon(iconName) {
+  if (!iconName) return 'info'
+  
   const iconMap = {
-    'politics': 'account_balance',
+    'politics': 'gavel',
+    'politika': 'gavel',
     'trending-up': 'trending_up',
+    'economy': 'trending_up',
+    'ekonomika': 'trending_up',
     'sports': 'sports_soccer',
+    'sport': 'sports_soccer',
     'cpu': 'computer',
+    'technology': 'computer',
+    'tech': 'computer',
+    'tehnologii': 'computer',
     'palette': 'palette',
+    'culture': 'palette',
+    'kultura': 'palette',
     'flask': 'science',
-    'users': 'group',
-    'alert-triangle': 'warning'
+    'science': 'science',
+    'nauka': 'science',
+    'users': 'people',
+    'society': 'people',
+    'obschestvo': 'people',
+    'alert-triangle': 'warning',
+    'incidents': 'warning',
+    'proisshestviya': 'warning',
+    'health': 'local_hospital',
+    'zdorove': 'local_hospital',
+    'education': 'school',
+    'obrazovanie': 'school',
+    'international': 'public',
+    'mezhdunarodnye': 'public',
+    'business': 'business',
+    'biznes': 'business'
   }
-  return iconMap[iconName] || 'info'
+  
+  // Ищем точное совпадение
+  if (iconMap[iconName]) {
+    return iconMap[iconName]
+  }
+  
+  // Ищем по частичному совпадению (для slug)
+  const lowerIconName = iconName.toLowerCase()
+  for (const [key, value] of Object.entries(iconMap)) {
+    if (lowerIconName.includes(key)) {
+      return value
+    }
+  }
+  
+  return 'info'
+}
+
+// Функция для преобразования цветов Quasar в CSS цвета
+function getCategoryColor(quasarColor) {
+  if (!quasarColor) return '#1976d2' // primary по умолчанию
+  
+  const colorMap = {
+    'red-6': '#f44336',
+    'green-6': '#4caf50',
+    'blue-6': '#2196f3',
+    'purple-6': '#9c27b0',
+    'orange-6': '#ff9800',
+    'indigo-6': '#3f51b5',
+    'teal-6': '#009688',
+    'amber-7': '#ff8f00',
+    'pink-6': '#e91e63',
+    'cyan-6': '#00bcd4',
+    'deep-purple-6': '#673ab7',
+    'brown-6': '#795548'
+  }
+  
+  return colorMap[quasarColor] || '#1976d2'
 }
 
 
@@ -740,6 +861,11 @@ function editPulse(pulse) {
     categories: pulse.categories ? [...pulse.categories] : [],
     keywords: pulse.keywords || ''
   }
+  // Обновляем состояние "Выбрать все" после загрузки данных
+  setTimeout(() => {
+    updateSelectAllCountries()
+    updateSelectAllCategories()
+  }, 100)
   showCreatePulse.value = true
 }
 
@@ -759,6 +885,8 @@ function cancelPulseDialog() {
     categories: [],
     keywords: '',
   }
+  selectAllCountries.value = false
+  selectAllCategories.value = false
 }
 
 // Общие методы для новостей
@@ -869,6 +997,8 @@ async function loadReferenceData() {
     if (categoriesResponse && categoriesResponse.data && categoriesResponse.data.success && Array.isArray(categoriesResponse.data.data)) {
       categories.value = categoriesResponse.data.data
       console.log('Categories loaded:', categories.value.length)
+      console.log('First category example:', categories.value[0])
+      console.log('Category fields:', categories.value[0] ? Object.keys(categories.value[0]) : 'No categories')
     } else {
       console.warn('Categories data is not valid')
       console.log('Categories response structure:', JSON.stringify(categoriesResponse, null, 2))
@@ -1630,6 +1760,7 @@ const isContentCorrupted = (content) => {
     height: 120px !important;
   }
 }
+
 
 // Стили для новостей (скопированы из NewsPage.vue)
 .news-card {
