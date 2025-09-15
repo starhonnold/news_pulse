@@ -133,6 +133,21 @@ metrics:
   port: 9091
   path: "/metrics"
 
+# Настройки прокси
+proxy:
+  enabled: false  # Включить прокси (установите через PROXY_ENABLED=true)
+  url: ""  # URL прокси (например: http://proxy.example.com:8080)
+  username: ""  # Имя пользователя для прокси (если требуется)
+  password: ""  # Пароль для прокси (если требуется)
+
+# AI Classification Settings
+ai:
+  ollama_url: "http://ollama:11434"
+  model: "phi3:3.8b"
+  timeout: "60s"
+  max_concurrent: 3
+  temperature: 0.1
+
 # Настройки для разных окружений
 environments:
   development:

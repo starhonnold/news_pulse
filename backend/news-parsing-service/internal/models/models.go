@@ -241,45 +241,27 @@ const (
 
 // Константы для категорий (соответствуют данным в БД)
 const (
-	CategoryRussia        = 1  // Россия
-	CategoryMyCountry     = 2  // Моя страна
-	CategoryExUSSR        = 3  // Бывший СССР
-	CategoryScienceTech   = 4  // Наука и техника
-	CategoryTravel        = 5  // Путешествия
-	CategoryInternetMedia = 6  // Интернет и СМИ
-	CategoryLifestyle     = 7  // Из жизни
-	CategorySecurity      = 8  // Силовые структуры
-	CategoryValues        = 9  // Ценности
-	CategorySelfCare      = 10 // Забота о себе
-	CategoryWorld         = 11 // Мир
-	// Старые категории (деактивированы, но оставляем для совместимости)
-	CategoryEconomy   = 3  // Экономика (остается)
-	CategorySport     = 4  // Спорт (остается)
-	CategoryCulture   = 5  // Культура (остается)
-	CategorySociety   = 7  // Общество (остается)
-	CategoryIncidents = 8  // Происшествия (остается)
-	CategoryHealth    = 9  // Здоровье (остается)
-	CategoryEducation = 10 // Образование (остается)
-	CategoryBusiness  = 12 // Бизнес (остается)
-	CategorySportNew  = 13 // Спорт (новая категория)
+	CategoryPolitics   = 1 // Политика
+	CategoryEconomics  = 2 // Экономика
+	CategorySports     = 3 // Спорт
+	CategoryTechnology = 4 // Технологии
+	CategoryCulture    = 5 // Культура
+	CategoryScience    = 6 // Наука
+	CategorySociety    = 7 // Общество
+	CategoryIncidents  = 8 // Происшествия
 )
 
 // GetCategoryName возвращает название категории по ID
 func GetCategoryName(id int) string {
 	categories := map[int]string{
-		CategoryRussia:        "Россия",
-		CategoryMyCountry:     "Моя страна",
-		CategoryExUSSR:        "Бывший СССР",
-		CategoryScienceTech:   "Наука и техника",
-		CategoryTravel:        "Путешествия",
-		CategoryInternetMedia: "Интернет и СМИ",
-		CategoryLifestyle:     "Из жизни",
-		CategorySecurity:      "Силовые структуры",
-		CategoryValues:        "Ценности",
-		CategorySelfCare:      "Забота о себе",
-		CategoryWorld:         "Мир",
-		CategoryBusiness:      "Бизнес",
-		CategorySportNew:      "Спорт",
+		CategoryPolitics:   "Политика",
+		CategoryEconomics:  "Экономика",
+		CategorySports:     "Спорт",
+		CategoryTechnology: "Технологии",
+		CategoryCulture:    "Культура",
+		CategoryScience:    "Наука",
+		CategorySociety:    "Общество",
+		CategoryIncidents:  "Происшествия",
 	}
 
 	if name, exists := categories[id]; exists {

@@ -639,14 +639,14 @@ func (r *PulseRepository) PulseExists(ctx context.Context, pulseID string) (bool
 // GetByIDWithoutUser получает пульс по ID без проверки пользователя
 func (r *PulseRepository) GetByIDWithoutUser(ctx context.Context, pulseID string) (*models.UserPulse, error) {
 	query := `
-		SELECT id, user_id, name, description, refresh_interval_min, is_active, is_default,
+		SELECT id, user_id, name, description, keywords, refresh_interval_min, is_active, is_default,
 			   created_at, updated_at, last_refreshed_at
 		FROM user_pulses
 		WHERE id = $1`
 
 	var pulse models.UserPulse
 	err := r.db.QueryRowContext(ctx, query, pulseID).Scan(
-		&pulse.ID, &pulse.UserID, &pulse.Name, &pulse.Description,
+		&pulse.ID, &pulse.UserID, &pulse.Name, &pulse.Description, &pulse.Keywords,
 		&pulse.RefreshIntervalMin, &pulse.IsActive, &pulse.IsDefault,
 		&pulse.CreatedAt, &pulse.UpdatedAt, &pulse.LastRefreshedAt,
 	)

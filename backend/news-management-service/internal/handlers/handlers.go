@@ -203,6 +203,17 @@ func (h *Handler) SearchNews(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CategoryResponse представляет категорию для API ответа
+type CategoryResponse struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Color       string `json:"color"`
+	Icon        string `json:"icon"`
+	Description string `json:"description"`
+	IsActive    bool   `json:"is_active"`
+}
+
 // GetCategories возвращает все категории
 func (h *Handler) GetCategories(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.newsService.GetCategories(r.Context())
@@ -212,9 +223,23 @@ func (h *Handler) GetCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Преобразуем в ответ с русскими названиями
+	var categoryResponses []CategoryResponse
+	for _, cat := range categories {
+		categoryResponses = append(categoryResponses, CategoryResponse{
+			ID:          cat.ID,
+			Name:        cat.GetDisplayName(), // Используем русское название
+			Slug:        cat.Slug,
+			Color:       cat.Color,
+			Icon:        cat.Icon,
+			Description: cat.Description,
+			IsActive:    cat.IsActive,
+		})
+	}
+
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
-		Data:    categories,
+		Data:    categoryResponses,
 	})
 }
 

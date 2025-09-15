@@ -64,6 +64,25 @@ type Category struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// GetDisplayName возвращает русское название категории
+func (c *Category) GetDisplayName() string {
+	displayNames := map[string]string{
+		"politics":   "Политика",
+		"economics":  "Экономика",
+		"sports":     "Спорт",
+		"technology": "Технологии",
+		"culture":    "Культура",
+		"science":    "Наука",
+		"society":    "Общество",
+		"incidents":  "Происшествия",
+	}
+
+	if displayName, exists := displayNames[c.Slug]; exists {
+		return displayName
+	}
+	return c.Name // Fallback к оригинальному названию
+}
+
 // Tag представляет тег новости
 type Tag struct {
 	ID         int       `json:"id" db:"id"`
@@ -330,50 +349,27 @@ func NormalizeSortParams(sortBy, sortOrder string) (string, string) {
 
 // Константы для категорий (соответствуют данным в БД)
 const (
-	CategoryWorld         = 16 // Мир
-	CategoryRussia        = 17 // Россия
-	CategoryScienceTech   = 18 // Наука и техника
-	CategoryLifestyle     = 19 // Из жизни
-	CategoryInternetMedia = 20 // Интернет и СМИ
-	CategoryMyCountry     = 21 // Моя страна
-	CategoryExUSSR        = 22 // Бывший СССР
-	CategoryTravel        = 23 // Путешествия
-	CategorySecurity      = 24 // Силовые структуры
-	CategoryValues        = 25 // Ценности
-	CategorySelfCare      = 26 // Забота о себе
-	// Старые категории (деактивированы, но оставляем для совместимости)
-	CategoryEconomy   = 3  // Экономика (остается)
-	CategorySport     = 4  // Спорт (остается)
-	CategoryCulture   = 5  // Культура (остается)
-	CategorySociety   = 7  // Общество (остается)
-	CategoryIncidents = 8  // Происшествия (остается)
-	CategoryHealth    = 9  // Здоровье (остается)
-	CategoryEducation = 10 // Образование (остается)
-	CategoryBusiness  = 12 // Бизнес (остается)
+	CategoryPolitics   = 1 // Политика
+	CategoryEconomics  = 2 // Экономика
+	CategorySports     = 3 // Спорт
+	CategoryTechnology = 4 // Технологии
+	CategoryCulture    = 5 // Культура
+	CategoryScience    = 6 // Наука
+	CategorySociety    = 7 // Общество
+	CategoryIncidents  = 8 // Происшествия
 )
 
 // GetCategoryName возвращает название категории по ID
 func GetCategoryName(id int) string {
 	categories := map[int]string{
-		CategoryWorld:         "Мир",
-		CategoryRussia:        "Россия",
-		CategoryScienceTech:   "Наука и техника",
-		CategoryLifestyle:     "Из жизни",
-		CategoryInternetMedia: "Интернет и СМИ",
-		CategoryMyCountry:     "Моя страна",
-		CategoryExUSSR:        "Бывший СССР",
-		CategoryTravel:        "Путешествия",
-		CategorySecurity:      "Силовые структуры",
-		CategoryValues:        "Ценности",
-		CategorySelfCare:      "Забота о себе",
-		CategoryEconomy:       "Экономика",
-		CategorySport:         "Спорт",
-		CategoryCulture:       "Культура",
-		CategorySociety:       "Общество",
-		CategoryIncidents:     "Происшествия",
-		CategoryHealth:        "Здоровье",
-		CategoryEducation:     "Образование",
-		CategoryBusiness:      "Бизнес",
+		CategoryPolitics:   "Политика",
+		CategoryEconomics:  "Экономика",
+		CategorySports:     "Спорт",
+		CategoryTechnology: "Технологии",
+		CategoryCulture:    "Культура",
+		CategoryScience:    "Наука",
+		CategorySociety:    "Общество",
+		CategoryIncidents:  "Происшествия",
 	}
 
 	if name, exists := categories[id]; exists {

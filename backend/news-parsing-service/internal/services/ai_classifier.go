@@ -5,278 +5,284 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"strings"
+	"sync"
 	"time"
-
-	"news-parsing-service/internal/config"
 
 	"github.com/sirupsen/logrus"
 )
 
-// OpenRouterRequest структура запроса к OpenRouter API
-type OpenRouterRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
-	Temperature float64   `json:"temperature,omitempty"`
-}
-
-// Message структура сообщения для OpenRouter
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// OpenRouterResponse структура ответа от OpenRouter API
-type OpenRouterResponse struct {
-	Choices []Choice `json:"choices"`
-	Error   *Error   `json:"error,omitempty"`
-}
-
-// Choice структура выбора из ответа
-type Choice struct {
-	Message Message `json:"message"`
-}
-
-// Error структура ошибки
-type Error struct {
-	Message string `json:"message"`
-	Type    string `json:"type"`
-}
-
-// AIClassifier сервис для классификации новостей с помощью AI
-type AIClassifier struct {
-	config      *config.Config
-	logger      *logrus.Logger
+// OllamaClient представляет клиент для работы с Ollama API
+type OllamaClient struct {
+	baseURL     string
+	model       string
+	temperature float64
 	httpClient  *http.Client
-	apiKey      string
-	lastRequest time.Time
+	logger      *logrus.Logger
 }
 
-// NewAIClassifier создает новый экземпляр AI-классификатора
-func NewAIClassifier(config *config.Config, logger *logrus.Logger) *AIClassifier {
-	return &AIClassifier{
-		config: config,
-		logger: logger,
+// OllamaRequest представляет запрос к Ollama API
+type OllamaRequest struct {
+	Model   string                 `json:"model"`
+	Prompt  string                 `json:"prompt"`
+	Stream  bool                   `json:"stream"`
+	Options map[string]interface{} `json:"options,omitempty"`
+}
+
+// OllamaResponse представляет ответ от Ollama API
+type OllamaResponse struct {
+	Model     string    `json:"model"`
+	CreatedAt time.Time `json:"created_at"`
+	Response  string    `json:"response"`
+	Done      bool      `json:"done"`
+}
+
+// AIClassifier представляет AI классификатор новостей
+type AIClassifier struct {
+	client *OllamaClient
+	logger *logrus.Logger
+}
+
+// NewOllamaClient создает новый клиент Ollama
+func NewOllamaClient(baseURL string, timeout time.Duration, temperature float64, logger *logrus.Logger) *OllamaClient {
+	return &OllamaClient{
+		baseURL:     baseURL,
+		temperature: temperature,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: timeout,
 		},
-		apiKey: config.OpenAIAPIKey,
+		logger: logger,
 	}
 }
 
-// NewsItem представляет новость для batch-классификации
-type NewsItem struct {
-	Title       string
-	Description string
-	Content     string
-	Index       int // Индекс для сопоставления ответа
+// NewAIClassifier создает новый AI классификатор
+func NewAIClassifier(ollamaURL string, model string, timeout time.Duration, temperature float64, logger *logrus.Logger) *AIClassifier {
+	client := NewOllamaClient(ollamaURL, timeout, temperature, logger)
+	client.model = model
+	return &AIClassifier{
+		client: client,
+		logger: logger,
+	}
 }
 
-// BatchClassificationResult результат batch-классификации
-type BatchClassificationResult struct {
-	Index      int
-	CategoryID int
-	Error      error
-}
-
-// ClassifyNews классифицирует новость с помощью AI (для обратной совместимости)
-func (ai *AIClassifier) ClassifyNews(ctx context.Context, title, description, content string) (*int, error) {
-	// Для обратной совместимости используем batch-классификацию с одной новостью
-	items := []NewsItem{
-		{
-			Title:       title,
-			Description: description,
-			Content:     content,
-			Index:       0,
-		},
-	}
-
-	results, err := ai.ClassifyNewsBatch(ctx, items)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(results) == 0 || results[0].Error != nil {
-		return nil, fmt.Errorf("batch classification failed")
-	}
-
-	return &results[0].CategoryID, nil
-}
-
-// ClassifyNewsBatch классифицирует множество новостей одним запросом
-func (ai *AIClassifier) ClassifyNewsBatch(ctx context.Context, items []NewsItem) ([]BatchClassificationResult, error) {
+// ProcessNewsBatch обрабатывает пакет новостей для классификации параллельно
+func (c *AIClassifier) ProcessNewsBatch(ctx context.Context, items []UnifiedNewsItem) ([]UnifiedProcessingResult, error) {
 	if len(items) == 0 {
-		return nil, fmt.Errorf("no items to classify")
+		return []UnifiedProcessingResult{}, nil
 	}
 
-	// Получаем список доступных категорий
-	categories := ai.getAvailableCategories()
+	// Ограничиваем количество параллельных запросов для CPU модели
+	const maxConcurrent = 3
+	semaphore := make(chan struct{}, maxConcurrent)
 
-	// Формируем batch-промпт
-	prompt := ai.buildBatchPrompt(items, categories)
+	results := make([]UnifiedProcessingResult, len(items))
+	errors := make([]error, len(items))
 
-	// Отправляем запрос к OpenRouter
-	response, err := ai.sendRequest(ctx, prompt)
-	if err != nil {
-		ai.logger.WithError(err).Error("Failed to send batch request to OpenRouter")
-		return nil, err
+	var wg sync.WaitGroup
+
+	for i, item := range items {
+		wg.Add(1)
+		go func(index int, newsItem UnifiedNewsItem) {
+			defer wg.Done()
+
+			// Получаем семафор
+			select {
+			case semaphore <- struct{}{}:
+			case <-ctx.Done():
+				errors[index] = ctx.Err()
+				return
+			}
+			defer func() { <-semaphore }()
+
+			// Классифицируем новость
+			result := c.classifyNewsItem(ctx, newsItem, index)
+			results[index] = result
+		}(i, item)
 	}
 
-	// Парсим batch-ответ
-	results, err := ai.parseBatchResponse(response, items, categories)
-	if err != nil {
-		ai.logger.WithError(err).Error("Failed to parse batch AI response")
-		return nil, err
-	}
+	wg.Wait()
 
-	ai.logger.WithFields(logrus.Fields{
-		"items_count":   len(items),
-		"results_count": len(results),
-		"ai_response":   response,
-	}).Info("AI batch classified news categories")
+	// Проверяем на ошибки контекста
+	for _, err := range errors {
+		if err != nil {
+			return results, err
+		}
+	}
 
 	return results, nil
 }
 
-// getAvailableCategories возвращает список доступных категорий
-func (ai *AIClassifier) getAvailableCategories() map[string]int {
-	return map[string]int{
-		"Россия":            1,
-		"Моя страна":        2,
-		"Бывший СССР":       3,
-		"Наука и техника":   4,
-		"Путешествия":       5,
-		"Интернет и СМИ":    6,
-		"Из жизни":          7,
-		"Силовые структуры": 8,
-		"Ценности":          9,
-		"Забота о себе":     10,
-		"Мир":               11,
-		"Бизнес":            12,
-		"Спорт":             13,
-	}
-}
+// processIndividualItems обрабатывает новости индивидуально (fallback)
+func (c *AIClassifier) processIndividualItems(ctx context.Context, items []UnifiedNewsItem) ([]UnifiedProcessingResult, error) {
+	results := make([]UnifiedProcessingResult, len(items))
 
-// buildBatchPrompt создает batch-промпт для AI
-func (ai *AIClassifier) buildBatchPrompt(items []NewsItem, categories map[string]int) string {
-	var categoryList strings.Builder
-	for category := range categories {
-		categoryList.WriteString(fmt.Sprintf("- %s\n", category))
-	}
-
-	var newsList strings.Builder
 	for i, item := range items {
-		// Берем первые 200 символов контента для экономии токенов
-		contentPreview := item.Content
-		if len(contentPreview) > 200 {
-			contentPreview = contentPreview[:200] + "..."
+		select {
+		case <-ctx.Done():
+			return results, ctx.Err()
+		default:
 		}
 
-		newsList.WriteString(fmt.Sprintf("%d. Заголовок: %s\n   Описание: %s\n   Содержание: %s\n\n",
-			i+1, item.Title, item.Description, contentPreview))
+		result := c.classifyNewsItem(ctx, item, i)
+		results[i] = result
 	}
 
-	prompt := fmt.Sprintf(`Ты - эксперт по классификации новостей. Определи категорию для каждой новости из предложенного списка.
-
-Доступные категории:
-%s
-
-Новости для классификации:
-%s
-
-Правила классификации:
-- "Россия" - новости о России, политике, экономике, обществе
-- "Моя страна" - новости о стране пользователя (если не Россия)
-- "Бывший СССР" - новости о странах бывшего СССР (кроме России)
-- "Наука и техника" - технологии, IT, научные открытия, инновации
-- "Путешествия" - туризм, путешествия, достопримечательности
-- "Интернет и СМИ" - новости о медиа, интернете, социальных сетях
-- "Из жизни" - бытовые новости, происшествия, социальные темы
-- "Силовые структуры" - военные, полиция, спецслужбы, безопасность
-- "Ценности" - культура, религия, мораль, традиции
-- "Забота о себе" - здоровье, медицина, спорт, фитнес
-- "Мир" - международные новости, геополитика
-- "Бизнес" - экономика, финансы, бизнес, инвестиции
-- "Спорт" - спортивные новости, соревнования, спортсмены
-
-Ответь в формате JSON:
-{
-  "classifications": [
-    {"index": 1, "category": "Россия"},
-    {"index": 2, "category": "Спорт"},
-    ...
-  ]
-}`,
-		categoryList.String(), newsList.String())
-
-	return prompt
+	return results, nil
 }
 
-// buildPrompt создает промпт для AI (для обратной совместимости)
-func (ai *AIClassifier) buildPrompt(title, description, content string, categories map[string]int) string {
-	var categoryList strings.Builder
-	for category := range categories {
-		categoryList.WriteString(fmt.Sprintf("- %s\n", category))
+// classifyNewsItem классифицирует одну новость
+func (c *AIClassifier) classifyNewsItem(ctx context.Context, item UnifiedNewsItem, index int) UnifiedProcessingResult {
+	// Создаем промпт для классификации
+	prompt := c.createClassificationPrompt(item)
+
+	// Отправляем запрос к Ollama
+	response, err := c.client.Generate(ctx, prompt)
+	if err != nil {
+		c.logger.WithError(err).WithField("index", index).Error("Failed to classify news item")
+		return UnifiedProcessingResult{
+			Index:      index,
+			Title:      item.Title,
+			Content:    item.Content,
+			CategoryID: 1, // Fallback to Politics
+			Confidence: 0.1,
+			Error:      err,
+		}
 	}
 
-	// Берем первые 500 символов контента для экономии токенов
-	contentPreview := content
-	if len(content) > 500 {
-		contentPreview = content[:500] + "..."
+	// Парсим ответ и определяем категорию
+	categoryID, confidence := c.parseClassificationResponse(response)
+
+	// Проверяем, удалось ли определить категорию
+	if categoryID == 0 {
+		err := fmt.Errorf("failed to determine category from AI response: %s", response)
+		c.logger.WithError(err).WithField("index", index).Warn("AI classification failed")
+		return UnifiedProcessingResult{
+			Index:      index,
+			Title:      item.Title,
+			Content:    item.Content,
+			CategoryID: 0,
+			Confidence: 0.0,
+			Error:      err,
+		}
 	}
 
-	prompt := fmt.Sprintf(`Ты - эксперт по классификации новостей. Определи категорию для следующей новости из предложенного списка.
+	c.logger.WithFields(logrus.Fields{
+		"index":       index,
+		"title":       truncateForLog(item.Title, 50),
+		"category_id": categoryID,
+		"confidence":  confidence,
+		"response":    truncateForLog(response, 100),
+	}).Info("News classified with AI")
 
-Доступные категории:
-%s
-
-Заголовок: %s
-Описание: %s
-Содержание: %s
-
-Правила классификации:
-- "Россия" - новости о России, политике, экономике, обществе
-- "Моя страна" - новости о стране пользователя (если не Россия)
-- "Бывший СССР" - новости о странах бывшего СССР (кроме России)
-- "Наука и техника" - технологии, IT, научные открытия, инновации
-- "Путешествия" - туризм, путешествия, достопримечательности
-- "Интернет и СМИ" - новости о медиа, интернете, социальных сетях
-- "Из жизни" - бытовые новости, происшествия, социальные темы
-- "Силовые структуры" - военные, полиция, спецслужбы, безопасность
-- "Ценности" - культура, религия, мораль, традиции
-- "Забота о себе" - здоровье, медицина, спорт, фитнес
-- "Мир" - международные новости, геополитика
-- "Бизнес" - экономика, финансы, бизнес, инвестиции
-- "Спорт" - спортивные новости, соревнования, спортсмены
-
-Ответь ТОЛЬКО названием категории без дополнительных объяснений.`,
-		categoryList.String(), title, description, contentPreview)
-
-	return prompt
+	return UnifiedProcessingResult{
+		Index:      index,
+		Title:      item.Title,
+		Content:    item.Content,
+		CategoryID: categoryID,
+		Confidence: confidence,
+		Error:      nil,
+	}
 }
 
-// sendRequest отправляет запрос к OpenRouter API
-func (ai *AIClassifier) sendRequest(ctx context.Context, prompt string) (string, error) {
-	// Добавляем небольшую задержку между запросами (собственный API ключ)
-	timeSinceLastRequest := time.Since(ai.lastRequest)
-	if timeSinceLastRequest < 2*time.Second {
-		delay := 2*time.Second - timeSinceLastRequest
-		ai.logger.WithField("delay", delay).Debug("Rate limiting delay")
-		time.Sleep(delay)
+// createClassificationPrompt создает промпт для классификации новости
+func (c *AIClassifier) createClassificationPrompt(item UnifiedNewsItem) string {
+	return fmt.Sprintf(`You are a strict news classifier.
+Your task is to assign the news into ONE category from the list.
+
+Categories:
+1. Politics - president, government, elections, parliament, minister, deputy, law, sanctions, negotiations, diplomacy, war, security, reforms, kremlin, nato, eu
+2. Economy - economy, inflation, currency, exchange rate, ruble, dollar, euro, budget, bank, credit, investments, market, tax, rate
+3. Sports - sports, match, team, player, coach, championship, tournament, goal, score, league, club, футбол, матч, команда, игрок, тренер, чемпионат, турнир, гол, счет, лига, клуб
+4. Technology - technology, computer, internet, smartphone, application, artificial intelligence, robot, software, data, network, технология, компьютер, интернет, смартфон, приложение, искусственный интеллект, робот, софт, данные, сеть
+5. Culture - culture, art, museum, theater, cinema, film, actor, director, music, concert, exhibition, book, культура, искусство, музей, театр, кино, фильм, актер, режиссер, музыка, концерт, выставка, книга
+6. Science - science, research, scientist, experiment, laboratory, journal, university, discovery, development, наука, исследование, ученый, эксперимент, лаборатория, журнал, университет, открытие, разработка
+7. Society - society, social, citizen, court, police, road, family, children, общество, социальный, гражданин, суд, полиция, дорога, семья, дети
+8. Incidents - incident, accident, fire, explosion, disaster, terrorist attack, crime, murder, theft, earthquake, происшествие, ДТП, авария, пожар, взрыв, катастрофа, теракт, криминал, убийство, кража, землетрясение
+9. Health - health, medical, doctor, hospital, treatment, disease, symptom, diagnosis, vaccine, epidemic, здоровье, медицинский, врач, больница, лечение, заболевание, симптом, диагноз, вакцина, эпидемия
+10. Education - school, university, institute, exam, student, teacher, course, lecture, bachelor, master, школа, университет, институт, экзамен, студент, учитель, курс, лекция, бакалавр, магистр
+11. International - international, summit, diplomacy, ambassador, visa, border, nato, eu, un, brussels, международный, саммит, дипломатия, посол, виза, граница, нато, ес, оон, брюссель
+12. Business - business, company, corporation, director, manager, employee, office, recruitment, dismissal, profit, бизнес, компания, корпорация, директор, менеджер, сотрудник, офис, рекрутинг, увольнение, прибыль
+
+Examples:
+News: "Президент подписал новый закон"
+Answer: 1
+
+News: "Клуб выиграл матч чемпионата России по футболу"
+Answer: 3
+
+News: "Компания представила новый смартфон с искусственным интеллектом"
+Answer: 4
+
+News: "Ученые провели исследование в университете"
+Answer: 6
+
+News: "В больнице прошла операция по пересадке сердца"
+Answer: 9
+
+Now classify this news:
+
+Title: %s
+Description: %s
+Content: %s
+
+Answer ONLY with one number (1–12). No explanations, no text, no punctuation.
+`,
+		item.Title,
+		item.Description,
+		truncateForLog(item.Content, 1000))
+}
+
+// parseClassificationResponse парсит ответ от AI и определяет категорию
+func (c *AIClassifier) parseClassificationResponse(response string) (int, float64) {
+	// Ищем число в ответе
+	var categoryID int
+	var confidence float64 = 0.5 // Базовая уверенность
+
+	// Простой парсинг - ищем первое число от 1 до 12
+	for _, char := range response {
+		if char >= '1' && char <= '9' {
+			categoryID = int(char - '0')
+			confidence = 0.8
+			break
+		} else if char == '1' {
+			// Проверяем следующую цифру для 10, 11, 12
+			if len(response) > 1 {
+				nextChar := response[1]
+				if nextChar == '0' {
+					categoryID = 10
+					confidence = 0.8
+					break
+				} else if nextChar == '1' {
+					categoryID = 11
+					confidence = 0.8
+					break
+				} else if nextChar == '2' {
+					categoryID = 12
+					confidence = 0.8
+					break
+				}
+			}
+		}
 	}
-	ai.lastRequest = time.Now()
-	request := OpenRouterRequest{
-		Model: "gpt-4o-mini",
-		Messages: []Message{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
+
+	// Если не нашли валидную категорию, возвращаем ошибку
+	if categoryID < 1 || categoryID > 12 {
+		return 0, 0.0 // Возвращаем 0 как индикатор неудачи
+	}
+
+	return categoryID, confidence
+}
+
+// Generate отправляет запрос к Ollama API
+func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, error) {
+	request := OllamaRequest{
+		Model:  c.model,
+		Prompt: prompt,
+		Stream: false,
+		Options: map[string]interface{}{
+			"temperature": c.temperature,
 		},
-		MaxTokens:   2000,
-		Temperature: 0.1, // Низкая температура для более точных ответов
 	}
 
 	jsonData, err := json.Marshal(request)
@@ -284,180 +290,53 @@ func (ai *AIClassifier) sendRequest(ctx context.Context, prompt string) (string,
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/generate", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+ai.apiKey)
-	req.Header.Set("HTTP-Referer", "https://news-pulse.local")
-	req.Header.Set("X-Title", "News Pulse AI Classifier")
 
-	resp, err := ai.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusTooManyRequests {
-		ai.logger.Warn("Rate limited by OpenRouter API, will retry with longer delay")
-		// Увеличиваем задержку для следующего запроса
-		ai.lastRequest = time.Now().Add(-10 * time.Second)
-		return "", fmt.Errorf("rate limited")
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("ollama API error: %d - %s", resp.StatusCode, string(body))
 	}
 
-	var response OpenRouterResponse
+	var response OllamaResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if response.Error != nil {
-		return "", fmt.Errorf("API error: %s", response.Error.Message)
-	}
-
-	if len(response.Choices) == 0 {
-		return "", fmt.Errorf("no choices in response")
-	}
-
-	return response.Choices[0].Message.Content, nil
+	return response.Response, nil
 }
 
-// BatchResponse структура для парсинга batch-ответа
-type BatchResponse struct {
-	Classifications []ClassificationItem `json:"classifications"`
+// HealthCheck проверяет доступность Ollama сервиса
+func (c *OllamaClient) HealthCheck(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/tags", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create health check request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send health check request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("ollama health check failed: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
-// ClassificationItem элемент классификации
-type ClassificationItem struct {
-	Index    int    `json:"index"`
-	Category string `json:"category"`
-}
-
-// parseBatchResponse парсит batch-ответ AI
-func (ai *AIClassifier) parseBatchResponse(response string, items []NewsItem, categories map[string]int) ([]BatchClassificationResult, error) {
-	// Очищаем ответ от лишних символов
-	response = strings.TrimSpace(response)
-
-	// Если ответ пустой, возвращаем ошибку
-	if response == "" {
-		return nil, fmt.Errorf("empty AI response")
-	}
-
-	// Пытаемся найти JSON в ответе
-	jsonStart := strings.Index(response, "{")
-	jsonEnd := strings.LastIndex(response, "}")
-	if jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart {
-		return nil, fmt.Errorf("no valid JSON found in response")
-	}
-
-	jsonStr := response[jsonStart : jsonEnd+1]
-
-	var batchResponse BatchResponse
-	if err := json.Unmarshal([]byte(jsonStr), &batchResponse); err != nil {
-		ai.logger.WithFields(logrus.Fields{
-			"response": response,
-			"json_str": jsonStr,
-			"error":    err,
-		}).Error("Failed to parse JSON response")
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-	}
-
-	// Создаем результаты
-	results := make([]BatchClassificationResult, len(items))
-
-	// Инициализируем все результаты как ошибки
-	for i := range results {
-		results[i] = BatchClassificationResult{
-			Index:      i,
-			CategoryID: 7, // "Из жизни" по умолчанию
-			Error:      fmt.Errorf("no classification found"),
-		}
-	}
-
-	// Обрабатываем классификации
-	for _, classification := range batchResponse.Classifications {
-		index := classification.Index - 1 // Индексы в JSON начинаются с 1
-		if index < 0 || index >= len(items) {
-			ai.logger.WithFields(logrus.Fields{
-				"index":       classification.Index,
-				"items_count": len(items),
-			}).Warn("Invalid index in AI response")
-			continue
-		}
-
-		// Ищем категорию
-		if categoryID, exists := categories[classification.Category]; exists {
-			results[index] = BatchClassificationResult{
-				Index:      index,
-				CategoryID: categoryID,
-				Error:      nil,
-			}
-		} else {
-			// Ищем частичное совпадение
-			found := false
-			for category, categoryID := range categories {
-				if strings.Contains(strings.ToLower(classification.Category), strings.ToLower(category)) {
-					results[index] = BatchClassificationResult{
-						Index:      index,
-						CategoryID: categoryID,
-						Error:      nil,
-					}
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				ai.logger.WithFields(logrus.Fields{
-					"index":    index,
-					"category": classification.Category,
-				}).Warn("Unknown category in AI response")
-			}
-		}
-	}
-
-	return results, nil
-}
-
-// parseResponse парсит ответ AI и возвращает ID категории (для обратной совместимости)
-func (ai *AIClassifier) parseResponse(response string, categories map[string]int) (*int, error) {
-	// Очищаем ответ от лишних символов
-	response = strings.TrimSpace(response)
-	response = strings.Trim(response, "\"'")
-
-	// Если ответ пустой, возвращаем ошибку
-	if response == "" {
-		return nil, fmt.Errorf("empty AI response")
-	}
-
-	// Ищем точное совпадение
-	if categoryID, exists := categories[response]; exists {
-		return &categoryID, nil
-	}
-
-	// Ищем частичное совпадение
-	for category, categoryID := range categories {
-		if strings.Contains(strings.ToLower(response), strings.ToLower(category)) {
-			ai.logger.WithFields(logrus.Fields{
-				"ai_response":      response,
-				"matched_category": category,
-				"category_id":      categoryID,
-			}).Info("Partial match found for AI response")
-			return &categoryID, nil
-		}
-	}
-
-	// Если ничего не найдено, возвращаем категорию "Из жизни" по умолчанию
-	defaultCategory := 7 // "Из жизни"
-	ai.logger.WithFields(logrus.Fields{
-		"ai_response":         response,
-		"default_category_id": defaultCategory,
-	}).Warn("No category match found, using default")
-
-	return &defaultCategory, nil
+// Close закрывает клиент
+func (c *AIClassifier) Close() error {
+	return nil
 }
