@@ -203,7 +203,7 @@ database:
 api:
   max_pulses_per_user: 10           # Максимум пульсов на пользователя
   max_sources_per_pulse: 50         # Максимум источников в пульсе
-  max_categories_per_pulse: 10      # Максимум категорий в пульсе
+  max_categories_per_pulse: 12      # Максимум категорий в пульсе
   max_news_per_feed: 100           # Максимум новостей в ленте
   default_feed_page_size: 20       # Размер страницы ленты по умолчанию
 

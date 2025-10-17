@@ -9,8 +9,8 @@ server:
   idle_timeout: 120s
 
 database:
-  host: "postgres"
-  port: 5432
+  host: "localhost"
+  port: 5433
   user: "news_pulse_user"
   password: "news_pulse_secure_password_2024"
   dbname: "news_pulse"
@@ -132,6 +132,25 @@ metrics:
   enabled: true
   port: 9091
   path: "/metrics"
+
+# Настройки прокси
+proxy:
+  enabled: false  # Включить прокси (установите через PROXY_ENABLED=true)
+  url: ""  # URL прокси (например: http://proxy.example.com:8080)
+  username: ""  # Имя пользователя для прокси (если требуется)
+  password: ""  # Пароль для прокси (если требуется)
+
+# AI Classification Settings (DEPRECATED)
+ai:
+  enabled: false  # DEPRECATED
+
+# FastText Classification Settings (Используется с полным контентом)
+fasttext:
+  enabled: true  # ВКЛЮЧЕНО - работает с полным контентом новости
+  service_url: "http://news-classificator-service:8085"
+  timeout: "30s"
+  min_confidence: 0.15
+  use_fallback: true  # Используем WeightedClassifier как fallback
 
 # Настройки для разных окружений
 environments:

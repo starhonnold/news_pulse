@@ -21,8 +21,8 @@ metrics:
 
 # Подключение к PostgreSQL
 database:
-  host: "postgres"
-  port: 5432
+  host: "localhost"
+  port: 5433
   name: "news_pulse"
   user: "news_pulse_user"
   password: "news_pulse_secure_password_2024"

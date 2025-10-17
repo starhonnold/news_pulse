@@ -18,18 +18,11 @@ INSERT INTO countries (name, code, flag_emoji) VALUES
 
 -- Вставка категорий новостей
 INSERT INTO categories (name, slug, color, icon, description) VALUES
-('Политика', 'politics', 'red-6', 'gavel', 'Политические новости и события'),
-('Экономика', 'economy', 'green-6', 'trending_up', 'Экономические новости и финансы'),
 ('Спорт', 'sport', 'blue-6', 'sports_soccer', 'Спортивные новости и события'),
 ('Технологии', 'tech', 'purple-6', 'computer', 'Технологические новости и инновации'),
-('Культура', 'culture', 'orange-6', 'palette', 'Культурные события и искусство'),
-('Наука', 'science', 'indigo-6', 'science', 'Научные открытия и исследования'),
-('Общество', 'society', 'teal-6', 'people', 'Общественные события и социальные вопросы'),
-('Происшествия', 'incidents', 'amber-7', 'warning', 'Происшествия и чрезвычайные ситуации'),
-('Здоровье', 'health', 'pink-6', 'local_hospital', 'Медицина и здравоохранение'),
-('Образование', 'education', 'cyan-6', 'school', 'Образование и наука'),
-('Международные', 'international', 'deep-purple-6', 'public', 'Международные новости'),
-('Бизнес', 'business', 'brown-6', 'business', 'Бизнес и предпринимательство');
+('Политика', 'politics', 'red-6', 'gavel', 'Политические новости и события'),
+('Экономика и финансы', 'economy', 'green-6', 'trending_up', 'Экономические новости и финансы'),
+('Общество', 'society', 'teal-6', 'people', 'Общественные события и социальные вопросы');
 
 -- Вставка источников новостей
 
@@ -107,33 +100,63 @@ INSERT INTO news_sources (name, domain, rss_url, website_url, country_id, descri
 
 -- Вставка некоторых базовых тегов
 INSERT INTO tags (name, slug) VALUES
+('спорт', 'sport'),
+('технологии', 'technology'),
 ('политика', 'politics'),
 ('экономика', 'economy'),
-('технологии', 'technology'),
-('спорт', 'sport'),
-('культура', 'culture'),
-('наука', 'science'),
-('общество', 'society'),
-('происшествия', 'incidents'),
-('международные', 'international'),
-('бизнес', 'business'),
-('образование', 'education'),
-('здоровье', 'health'),
 ('финансы', 'finance'),
-('инновации', 'innovations'),
+('общество', 'society'),
+('футбол', 'football'),
+('хоккей', 'hockey'),
+('баскетбол', 'basketball'),
+('теннис', 'tennis'),
+('олимпиада', 'olympics'),
+('чемпионат', 'championship'),
 ('искусственный интеллект', 'ai'),
 ('блокчейн', 'blockchain'),
 ('криптовалюты', 'cryptocurrency'),
 ('стартапы', 'startups'),
 ('инвестиции', 'investments'),
-('недвижимость', 'real-estate');
+('недвижимость', 'real-estate'),
+('инновации', 'innovations'),
+('программирование', 'programming'),
+('гаджеты', 'gadgets'),
+('смартфоны', 'smartphones'),
+('электромобили', 'electric-cars'),
+('космос', 'space'),
+('выборы', 'elections'),
+('правительство', 'government'),
+('парламент', 'parliament'),
+('президент', 'president'),
+('министр', 'minister'),
+('закон', 'law'),
+('реформа', 'reform'),
+('бюджет', 'budget'),
+('инфляция', 'inflation'),
+('валюты', 'currencies'),
+('банки', 'banks'),
+('акции', 'stocks'),
+('кризис', 'crisis'),
+('безработица', 'unemployment'),
+('пенсии', 'pensions'),
+('социальные сети', 'social-networks'),
+('образование', 'education'),
+('здравоохранение', 'healthcare'),
+('экология', 'ecology'),
+('транспорт', 'transport'),
+('культура', 'culture'),
+('искусство', 'art'),
+('музыка', 'music'),
+('кино', 'cinema'),
+('театр', 'theater'),
+('литература', 'literature');
 
 -- DEPRECATED: Тестовые данные удалены
 -- НЕ ИСПОЛЬЗОВАТЬ В PRODUCTION!
 -- Тестовые пользователи и пульсы должны создаваться через API
 
 -- Обновляем счетчики использования тегов
-UPDATE tags SET usage_count = 1 WHERE slug IN ('politics', 'economy', 'technology', 'sport', 'culture', 'science');
+UPDATE tags SET usage_count = 1 WHERE slug IN ('sport', 'technology', 'politics', 'economy', 'finance', 'society');
 
 -- Комментарии для разработчиков
 /*

@@ -241,45 +241,21 @@ const (
 
 // Константы для категорий (соответствуют данным в БД)
 const (
-	CategoryRussia        = 1  // Россия
-	CategoryMyCountry     = 2  // Моя страна
-	CategoryExUSSR        = 3  // Бывший СССР
-	CategoryScienceTech   = 4  // Наука и техника
-	CategoryTravel        = 5  // Путешествия
-	CategoryInternetMedia = 6  // Интернет и СМИ
-	CategoryLifestyle     = 7  // Из жизни
-	CategorySecurity      = 8  // Силовые структуры
-	CategoryValues        = 9  // Ценности
-	CategorySelfCare      = 10 // Забота о себе
-	CategoryWorld         = 11 // Мир
-	// Старые категории (деактивированы, но оставляем для совместимости)
-	CategoryEconomy   = 3  // Экономика (остается)
-	CategorySport     = 4  // Спорт (остается)
-	CategoryCulture   = 5  // Культура (остается)
-	CategorySociety   = 7  // Общество (остается)
-	CategoryIncidents = 8  // Происшествия (остается)
-	CategoryHealth    = 9  // Здоровье (остается)
-	CategoryEducation = 10 // Образование (остается)
-	CategoryBusiness  = 12 // Бизнес (остается)
-	CategorySportNew  = 13 // Спорт (новая категория)
+	CategorySports     = 1 // Спорт
+	CategoryTechnology = 2 // Технологии
+	CategoryPolitics   = 3 // Политика
+	CategoryEconomics  = 4 // Экономика и финансы
+	CategorySociety    = 5 // Общество
 )
 
 // GetCategoryName возвращает название категории по ID
 func GetCategoryName(id int) string {
 	categories := map[int]string{
-		CategoryRussia:        "Россия",
-		CategoryMyCountry:     "Моя страна",
-		CategoryExUSSR:        "Бывший СССР",
-		CategoryScienceTech:   "Наука и техника",
-		CategoryTravel:        "Путешествия",
-		CategoryInternetMedia: "Интернет и СМИ",
-		CategoryLifestyle:     "Из жизни",
-		CategorySecurity:      "Силовые структуры",
-		CategoryValues:        "Ценности",
-		CategorySelfCare:      "Забота о себе",
-		CategoryWorld:         "Мир",
-		CategoryBusiness:      "Бизнес",
-		CategorySportNew:      "Спорт",
+		CategorySports:     "Спорт",
+		CategoryTechnology: "Технологии",
+		CategoryPolitics:   "Политика",
+		CategoryEconomics:  "Экономика и финансы",
+		CategorySociety:    "Общество",
 	}
 
 	if name, exists := categories[id]; exists {

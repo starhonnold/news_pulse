@@ -3,9 +3,6 @@
     <!-- Заголовок страницы -->
     <div class="row q-mb-md">
       <div class="col">
-        <div class="text-h4 text-weight-bold text-primary q-mb-sm">
-          Все новости
-        </div>
         <div class="text-subtitle1 text-grey-7">
           Просматривайте все новости с возможностью фильтрации и сортировки
         </div>
@@ -15,9 +12,9 @@
     <!-- Фильтры и поиск -->
     <q-card class="q-mb-md modern-card glass-effect">
       <q-card-section>
-        <div class="row q-gutter-md">
+        <div class="row q-gutter-sm">
           <!-- Поиск -->
-          <div class="col-12 col-md-4">
+          <div class="col-12 col-sm-6 col-md-3 col-lg-3">
             <q-input
               v-model="searchQuery"
               placeholder="Поиск новостей..."
@@ -43,65 +40,44 @@
           </div>
 
           <!-- Фильтр по категориям -->
-          <div class="col-12 col-md-3">
+          <div class="col-12 col-sm-6 col-md-3 col-lg-3">
             <q-select
-              v-model="selectedCategory"
+              v-model="selectedCategories"
               :options="categoryOptions"
-              label="Категория"
+              label="Категории"
               dense
               outlined
+              multiple
+              use-chips
               clearable
               class="modern-input"
               emit-value
               map-options
               @update:model-value="onFilterChange"
+              @clear="onCategoriesClear"
             />
           </div>
 
           <!-- Фильтр по странам -->
-          <div class="col-12 col-md-3">
+          <div class="col-12 col-sm-6 col-md-3 col-lg-3">
             <q-select
-              v-model="selectedCountry"
+              v-model="selectedCountries"
               :options="countryOptions"
-              label="Страна"
+              label="Страны"
               dense
               outlined
+              multiple
+              use-chips
               clearable
               class="modern-input"
               emit-value
               map-options
               @update:model-value="onFilterChange"
+              @clear="onCountriesClear"
             />
           </div>
 
-          <!-- Сортировка -->
-          <div class="col-12 col-md-2">
-            <q-select
-              v-model="sortBy"
-              :options="sortOptions"
-              label="Сортировка"
-              dense
-              outlined
-              class="modern-input"
-              @update:model-value="onSortChange"
-              emit-value
-              map-options
-            />
-          </div>
-        </div>
 
-        <!-- Кнопка очистки фильтров -->
-        <div class="row q-mt-md" v-if="hasActiveFilters">
-          <div class="col">
-            <q-btn
-              flat
-              dense
-              icon="clear_all"
-              label="Очистить все фильтры"
-              color="secondary"
-              @click="clearAllFilters"
-            />
-          </div>
         </div>
       </q-card-section>
     </q-card>
@@ -114,6 +90,38 @@
             Найдено: <span class="text-primary text-weight-medium">{{ totalNews }} новостей</span>
             <span v-if="allNews.length < totalNews" class="text-grey-6 q-ml-sm">
               (показано: {{ allNews.length }})
+            </span>
+            <!-- Иконка сортировки и кнопка очистки фильтров -->
+            <span class="q-ml-md">
+              <q-btn
+                flat
+                round
+                dense
+                :icon="sortOrder === 'desc' ? 'keyboard_arrow_down' : 'keyboard_arrow_up'"
+                :color="sortOrder === 'desc' ? 'primary' : 'grey-6'"
+                @click="toggleSortOrder"
+                class="sort-btn q-mr-sm"
+                size="sm"
+              >
+                <q-tooltip>
+                  {{ sortOrder === 'desc' ? 'Сначала новые' : 'Сначала старые' }}
+                </q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="hasActiveFilters"
+                flat
+                dense
+                icon="clear_all"
+                label="Очистить все фильтры"
+                color="secondary"
+                @click="clearAllFilters"
+                class="sort-btn"
+                size="sm"
+              >
+                <q-tooltip>
+                  Очистить все фильтры
+                </q-tooltip>
+              </q-btn>
             </span>
           </div>
         </div>
@@ -154,48 +162,47 @@
                 class="news-card cursor-pointer fade-in-up"
                 @click="openNews(news)"
               >
-                <div class="row no-wrap">
-                  <!-- Изображение новости -->
-                  <div v-if="isValidImageUrl(news.image_url || news.image)" class="col-auto">
-                    <q-img
-                      :src="news.image_url || news.image"
-                      style="width: 120px; height: 120px"
-                      class="rounded-borders news-image"
-                      fit="cover"
-                    >
-                      <template v-slot:error>
-                        <div class="absolute-full flex flex-center bg-grey-3">
-                          <q-icon name="image" size="lg" color="grey-6" />
-                        </div>
-                      </template>
-                    </q-img>
-                  </div>
+                <!-- Изображение новости -->
+                <div v-if="isValidImageUrl(news.image_url || news.image)" class="news-image-wrapper">
+                  <q-img
+                    :src="news.image_url || news.image"
+                    :ratio="16/9"
+                    class="news-image"
+                    fit="cover"
+                  >
+                    <template v-slot:error>
+                      <div class="absolute-full flex flex-center bg-grey-3">
+                        <q-icon name="image" size="lg" color="grey-6" />
+                      </div>
+                    </template>
+                  </q-img>
+                </div>
 
-                  <!-- Контент новости -->
-                  <div class="col">
-                    <q-card-section class="q-pa-md">
+                <!-- Контент новости -->
+                <q-card-section class="q-pa-md mobile-card-section">
                       <!-- Мета информация -->
-                      <div class="row items-center q-mb-sm">
-                        <div class="col-auto">
-                          <div class="news-meta">
+                      <div class="row items-center q-mb-sm mobile-news-meta-wrapper">
+                        <div class="col-12 col-sm-auto">
+                          <div class="news-meta mobile-news-meta">
                             <span class="country-flag q-mr-xs">{{ news.country?.flag_emoji || news.country?.flag || '🌍' }}</span>
-                            <span class="source-name text-weight-medium text-primary">
+                            <span class="source-name text-weight-medium text-primary mobile-source-name">
                               {{ news.source?.name || news.source_name || 'Неизвестный источник' }}
                             </span>
-                            <q-separator vertical class="q-mx-sm" />
-                            <span class="text-grey-7">{{ formatDate(news.published_at) }}</span>
+                            <q-separator vertical class="q-mx-sm mobile-separator" />
+                            <span class="text-grey-7 mobile-date">{{ formatDate(news.published_at) }}</span>
                           </div>
                         </div>
-                        <div class="col-auto">
+                        <div class="col-12 col-sm-auto q-mt-xs q-mt-sm-none">
                           <q-chip
-                            v-if="news.category_name"
-                            :color="news.category_color || 'primary'"
+                            v-if="news.category && news.category.name"
+                            :color="news.category.color || 'primary'"
+                            :style="news.category.color ? `background-color: ${news.category.color} !important; border-color: ${news.category.color} !important;` : ''"
                             text-color="white"
                             dense
-                            class="q-ml-sm"
+                            class="q-ml-none q-ml-sm-sm mobile-category-chip"
                           >
-                            <q-icon :name="news.category_icon || 'info'" class="q-mr-xs" />
-                            {{ news.category_name }}
+                            <q-icon :name="getCategoryIcon(news.category.icon)" class="q-mr-xs" />
+                            {{ news.category.name }}
                           </q-chip>
                         </div>
                       </div>
@@ -210,41 +217,41 @@
                         {{ cleanText(news.description) }}
                       </div>
 
-                      <!-- Действия справа -->
-                      <div class="row items-center justify-between">
-                        <div class="col">
-                          <div class="news-actions">
-                            <q-icon name="visibility" class="q-mr-xs" />
-                            {{ news.view_count || 0 }}
-                          </div>
-                        </div>
-                        <div class="col-auto">
-                          <div class="news-action-buttons">
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="share"
-                              @click.stop="shareNews(news)"
-                              class="q-mr-xs"
-                            >
-                              <q-tooltip>Поделиться</q-tooltip>
-                            </q-btn>
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="bookmark_border"
-                              @click.stop="bookmarkNews(news)"
-                            >
-                              <q-tooltip>В закладки</q-tooltip>
-                            </q-btn>
-                          </div>
-                        </div>
+                  <!-- Действия справа -->
+                  <div class="row items-center justify-between q-mt-sm">
+                    <div class="col">
+                      <div class="news-actions">
+                        <q-icon name="visibility" class="q-mr-xs" size="sm" />
+                        <span class="text-body2">{{ news.view_count || 0 }}</span>
                       </div>
-                    </q-card-section>
+                    </div>
+                    <div class="col-auto">
+                      <div class="news-action-buttons">
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="share"
+                          size="sm"
+                          @click.stop="shareNews(news)"
+                          class="q-mr-xs"
+                        >
+                          <q-tooltip>Поделиться</q-tooltip>
+                        </q-btn>
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="bookmark_border"
+                          size="sm"
+                          @click.stop="bookmarkNews(news)"
+                        >
+                          <q-tooltip>В закладки</q-tooltip>
+                        </q-btn>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </q-card-section>
 
                 <!-- Индикатор новой новости -->
                 <div
@@ -277,27 +284,25 @@
           <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
 
-        <q-card-section v-if="selectedNews">
-          <div class="row no-wrap">
-                    <!-- Изображение новости -->
-                    <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="col-auto">
-                      <q-img
-                        :src="selectedNews.image_url || selectedNews.image"
-                        style="width: 200px; height: 200px"
-                        class="rounded-borders news-image"
-                        fit="cover"
-                      >
-                        <template v-slot:error>
-                          <div class="absolute-full flex flex-center bg-grey-3">
-                            <q-icon name="image" size="lg" color="grey-6" />
-                          </div>
-                        </template>
-                      </q-img>
-                    </div>
+        <q-card-section v-if="selectedNews" class="dialog-news-section">
+          <!-- Изображение новости -->
+          <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="dialog-image-wrapper">
+            <q-img
+              :src="selectedNews.image_url || selectedNews.image"
+              :ratio="16/9"
+              class="rounded-borders dialog-news-image"
+              fit="cover"
+            >
+              <template v-slot:error>
+                <div class="absolute-full flex flex-center bg-grey-3">
+                  <q-icon name="image" size="lg" color="grey-6" />
+                </div>
+              </template>
+            </q-img>
+          </div>
 
-            <!-- Контент новости -->
-            <div class="col">
-              <q-card-section class="q-pa-md">
+          <!-- Контент новости -->
+          <div class="dialog-news-content">
                 <!-- Мета информация -->
                 <div class="row items-center q-mb-sm">
                   <div class="col-auto">
@@ -314,11 +319,12 @@
                     <q-chip
                       v-if="selectedNews.category && selectedNews.category.name"
                       :color="selectedNews.category.color || 'grey'"
+                      :style="selectedNews.category.color ? `background-color: ${selectedNews.category.color} !important; border-color: ${selectedNews.category.color} !important;` : ''"
                       text-color="white"
                       dense
                       class="q-ml-sm"
                     >
-                      <q-icon :name="selectedNews.category.icon || 'info'" class="q-mr-xs" />
+                      <q-icon :name="getCategoryIcon(selectedNews.category.icon)" class="q-mr-xs" />
                       {{ selectedNews.category.name }}
                     </q-chip>
                   </div>
@@ -334,27 +340,35 @@
                   {{ cleanText(selectedNews.description) }}
                 </div>
 
-                <!-- Действия -->
-                <div class="row items-center justify-between">
-                  <div class="col">
+                <!-- Полный текст новости -->
+                <div v-if="selectedNews.content" class="news-content q-mb-lg">
+                  <div 
+                    class="news-content-text text-body1 text-grey-8 q-mb-md"
+                    :class="{ 'error-content': isContentCorrupted(selectedNews.content) }"
+                  >
+                    {{ cleanNewsContent(selectedNews.content) }}
+                  </div>
+                  <div class="row justify-center">
                     <q-btn
                       color="primary"
-                      label="Открыть оригинал"
+                      label="Читать полностью"
                       @click="openOriginalNews(selectedNews.url)"
                       target="_blank"
                       icon="open_in_new"
-                    />
-                  </div>
-                  <div class="col-auto">
-                    <q-btn
-                      color="secondary"
-                      label="Закрыть"
-                      @click="showNewsDialog = false"
-                      flat
+                      class="q-px-lg"
                     />
                   </div>
                 </div>
-              </q-card-section>
+
+            <!-- Действия -->
+            <div class="row justify-center q-mt-lg">
+              <q-btn
+                color="secondary"
+                label="Закрыть"
+                @click="showNewsDialog = false"
+                flat
+                class="q-px-xl"
+              />
             </div>
           </div>
         </q-card-section>
@@ -369,22 +383,22 @@ import api from '../services/api'
 
 // Реактивные данные
 const searchQuery = ref('')
-const selectedCategory = ref(null)
-const selectedCountry = ref(null)
-const sortBy = ref('date_desc')
+const selectedCategories = ref([])
+const selectedCountries = ref([])
+const sortOrder = ref('desc')
 const showNewsDialog = ref(false)
 const selectedNews = ref(null)
 const lastUpdate = ref('')
 const allNews = ref([])
 const loading = ref(false)
 
+// Инициализация с пустыми массивами для избежания null значений
+selectedCategories.value = []
+selectedCountries.value = []
+
 // Опции для селектов
 const categoryOptions = ref([])
 const countryOptions = ref([])
-const sortOptions = [
-  { label: 'Сначала новые', value: 'date_desc' },
-  { label: 'Сначала старые', value: 'date_asc' }
-]
 
 // Вычисляемые свойства
 const filteredNews = computed(() => {
@@ -392,13 +406,10 @@ const filteredNews = computed(() => {
   let news = Array.isArray(allNews.value) ? allNews.value : []
   
   // Сортировка (фильтрация уже делается на сервере)
-  switch (sortBy.value) {
-    case 'date_desc':
-      news.sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
-      break
-    case 'date_asc':
-      news.sort((a, b) => new Date(a.published_at) - new Date(b.published_at))
-      break
+  if (sortOrder.value === 'desc') {
+    news.sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+  } else {
+    news.sort((a, b) => new Date(a.published_at) - new Date(b.published_at))
   }
   
   return news
@@ -409,7 +420,9 @@ const paginatedNews = computed(() => {
 })
 
 const hasActiveFilters = computed(() => {
-  return searchQuery.value || selectedCategory.value || selectedCountry.value
+  return searchQuery.value || 
+         (selectedCategories.value && selectedCategories.value.length > 0) || 
+         (selectedCountries.value && selectedCountries.value.length > 0)
 })
 
 // Методы
@@ -441,11 +454,11 @@ const loadNews = async (page = 1, reset = false) => {
     if (searchQuery.value) {
       params.keywords = searchQuery.value
     }
-    if (selectedCategory.value) {
-      params.categories = selectedCategory.value.toString()
+    if (selectedCategories.value && selectedCategories.value.length > 0) {
+      params.categories = selectedCategories.value.join(',')
     }
-    if (selectedCountry.value) {
-      params.countries = selectedCountry.value.toString()
+    if (selectedCountries.value && selectedCountries.value.length > 0) {
+      params.countries = selectedCountries.value.join(',')
     }
     
     const response = await api.get('/news', { params })
@@ -481,7 +494,7 @@ const loadNews = async (page = 1, reset = false) => {
     console.log(`Загружено ${newNews.length} новостей, всего: ${allNews.value.length}`)
     console.log('Total news from API:', totalNews.value)
     console.log('Первая новость:', newNews[0])
-    console.log('Фильтры:', { search: searchQuery.value, category: selectedCategory.value, country: selectedCountry.value })
+    console.log('Фильтры:', { search: searchQuery.value, categories: selectedCategories.value, countries: selectedCountries.value })
     console.log('API параметры:', params)
     
     if (reset) {
@@ -547,9 +560,6 @@ const onFilterChange = async () => {
 }
 
 
-const onSortChange = () => {
-  // Сортировка будет выполняться через computed свойство
-}
 
 const clearSearch = () => {
   searchQuery.value = ''
@@ -557,9 +567,25 @@ const clearSearch = () => {
 
 const clearAllFilters = () => {
   searchQuery.value = ''
-  selectedCategory.value = null
-  selectedCountry.value = null
-  sortBy.value = 'date_desc'
+  selectedCategories.value = []
+  selectedCountries.value = []
+  sortOrder.value = 'desc'
+}
+
+// Обработчики для очистки отдельных фильтров
+const onCategoriesClear = () => {
+  selectedCategories.value = []
+  onFilterChange()
+}
+
+const onCountriesClear = () => {
+  selectedCountries.value = []
+  onFilterChange()
+}
+
+const toggleSortOrder = async () => {
+  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  await loadNews(1, true)
 }
 
 const loadMoreNews = async (index, done) => {
@@ -603,6 +629,63 @@ const cleanText = (text) => {
     .trim()
 }
 
+// Функция для проверки и очистки контента новости
+const cleanNewsContent = (content) => {
+  if (!content) return ''
+  
+  // Проверяем, является ли контент искаженным (содержит много непечатаемых символов)
+  let nonPrintableCount = 0
+  const totalLength = content.length
+  
+  // Подсчитываем непечатаемые символы вручную
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    // Проверяем диапазоны непечатаемых символов
+    if ((charCode >= 0 && charCode <= 8) || // \u0000-\u0008
+        charCode === 11 || // \u000B
+        charCode === 12 || // \u000C
+        (charCode >= 14 && charCode <= 31) || // \u000E-\u001F
+        (charCode >= 127 && charCode <= 159)) { // \u007F-\u009F
+      nonPrintableCount++
+    }
+  }
+  
+  // Если более 20% символов непечатаемые, считаем контент искаженным
+  if (nonPrintableCount / totalLength > 0.2) {
+    console.warn('Обнаружен искаженный контент новости:', {
+      totalLength,
+      nonPrintableCount,
+      ratio: nonPrintableCount / totalLength,
+      preview: content.substring(0, 100)
+    })
+    return 'Контент новости недоступен или поврежден. Рекомендуется прочитать оригинальную статью.'
+  }
+  
+  // Очищаем контент от непечатаемых символов
+  let cleanedContent = ''
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    // Пропускаем непечатаемые символы
+    if (!((charCode >= 0 && charCode <= 8) ||
+          charCode === 11 ||
+          charCode === 12 ||
+          (charCode >= 14 && charCode <= 31) ||
+          (charCode >= 127 && charCode <= 159))) {
+      cleanedContent += content[i]
+    }
+  }
+  
+  // Заменяем множественные пробелы на один
+  cleanedContent = cleanedContent.replace(/\s+/g, ' ').trim()
+  
+  // Если после очистки контент стал слишком коротким, считаем его недоступным
+  if (cleanedContent.length < 50) {
+    return 'Контент новости недоступен или поврежден. Рекомендуется прочитать оригинальную статью.'
+  }
+  
+  return cleanText(cleanedContent)
+}
+
 // Функция для валидации URL изображения
 const isValidImageUrl = (url) => {
   if (!url) return false
@@ -638,6 +721,14 @@ const isValidImageUrl = (url) => {
 
 
 const openNews = (news) => {
+  console.log('Открываем новость:', {
+    id: news.id,
+    title: news.title,
+    description: news.description,
+    content: news.content ? news.content.substring(0, 200) + '...' : 'Нет контента',
+    url: news.url
+  })
+  
   selectedNews.value = news
   showNewsDialog.value = true
 }
@@ -703,6 +794,43 @@ const isNewNews = (news) => {
   const newsDate = new Date(news.published_at)
   const diffInHours = (now - newsDate) / (1000 * 60 * 60)
   return diffInHours < 24
+}
+
+// Функция для получения правильной иконки категории
+const getCategoryIcon = (iconName) => {
+  const iconMap = {
+    'sport': 'sports_soccer',
+    'tech': 'computer',
+    'politics': 'account_balance',
+    'economy': 'trending_up',
+    'society': 'group'
+  }
+  return iconMap[iconName] || 'info'
+}
+
+
+// Функция для проверки, является ли контент поврежденным
+const isContentCorrupted = (content) => {
+  if (!content) return false
+  
+  let nonPrintableCount = 0
+  const totalLength = content.length
+  
+  // Подсчитываем непечатаемые символы вручную
+  for (let i = 0; i < content.length; i++) {
+    const charCode = content.charCodeAt(i)
+    // Проверяем диапазоны непечатаемых символов
+    if ((charCode >= 0 && charCode <= 8) || // \u0000-\u0008
+        charCode === 11 || // \u000B
+        charCode === 12 || // \u000C
+        (charCode >= 14 && charCode <= 31) || // \u000E-\u001F
+        (charCode >= 127 && charCode <= 159)) { // \u007F-\u009F
+      nonPrintableCount++
+    }
+  }
+  
+  // Если более 20% символов непечатаемые, считаем контент поврежденным
+  return nonPrintableCount / totalLength > 0.2
 }
 
 // Жизненный цикл
@@ -811,6 +939,399 @@ onMounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.sort-btn {
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  
+  &:hover {
+    transform: scale(1.1);
+    border-color: var(--q-primary);
+  }
+  
+  &.q-btn--dense {
+    min-height: 24px;
+    padding: 4px;
+  }
+}
+
+// Стили для множественного выбора
+.q-select--multiple {
+  .q-field__native {
+    min-height: 40px;
+  }
+  
+  .q-chip {
+    margin: 2px;
+  }
+}
+
+// Стили для опций в выпадающем списке
+.q-item {
+  &.q-item--clickable {
+    &:hover {
+      background-color: var(--q-primary-light);
+    }
+  }
+}
+
+// Стили для кнопки очистки фильтров
+.q-btn {
+  &.q-btn--disabled {
+    opacity: 0.5;
+  }
+}
+
+// Стили для полного текста новости
+.news-content {
+  border-top: 1px solid var(--border-primary);
+  padding-top: 16px;
+  
+  .news-content-text {
+    line-height: 1.6;
+    text-align: justify;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    
+    // Стили для сообщения об ошибке контента
+    &.error-content {
+      background-color: var(--q-orange-1);
+      border: 1px solid var(--q-orange-3);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: var(--q-orange-8);
+      font-style: italic;
+    }
+  }
+}
+
+// Стили для изображения новости
+.news-image-wrapper {
+  width: 100%;
+  overflow: hidden;
+  
+  .news-image {
+    width: 100%;
+    transition: transform 0.3s ease;
+  }
+}
+
+.news-card:hover .news-image {
+  transform: scale(1.05);
+}
+
+// Ограничение размера изображений для десктопа
+@media (min-width: 600px) {
+  .news-card {
+    display: flex;
+    flex-direction: row;
+    
+    .news-image-wrapper {
+      width: 240px;
+      min-width: 240px;
+      max-width: 240px;
+      height: 160px;
+      flex-shrink: 0;
+      
+      .news-image {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-card {
+    .news-image-wrapper {
+      width: 280px;
+      min-width: 280px;
+      max-width: 280px;
+      height: 180px;
+    }
+  }
+}
+
+// Мобильная адаптация
+@media (max-width: 599px) {
+  .mobile-card-section {
+    padding: 16px !important;
+  }
+  
+  .mobile-news-meta-wrapper {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+  
+  .mobile-news-meta {
+    font-size: 0.875rem !important;
+    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .mobile-source-name {
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
+    }
+    
+    .mobile-date {
+      font-size: 0.85rem !important;
+    }
+    
+    .mobile-separator {
+      height: 14px !important;
+    }
+  }
+  
+  .mobile-category-chip {
+    font-size: 0.8rem !important;
+    height: 28px !important;
+    padding: 4px 10px !important;
+  }
+  
+  .news-card {
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+    overflow: hidden;
+    
+    .news-image-wrapper {
+      width: 100%;
+      
+      .news-image {
+        width: 100%;
+      }
+    }
+    
+    .news-title {
+      font-size: 1.1rem !important;
+      line-height: 1.5 !important;
+      font-weight: 600 !important;
+      margin-bottom: 12px !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .news-description {
+      font-size: 0.95rem !important;
+      line-height: 1.6 !important;
+      color: var(--text-secondary) !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .news-actions {
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+    
+    .news-action-buttons {
+      display: flex;
+      gap: 4px;
+      
+      .q-btn {
+        padding: 8px !important;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+  }
+  
+  // Фильтры
+  .modern-card {
+    .row.q-gutter-sm {
+      .col-12 {
+        margin-bottom: 8px;
+      }
+    }
+  }
+  
+  // Статистика
+  .status-card {
+    .q-card-section {
+      padding: 12px !important;
+      
+      .text-caption {
+        font-size: 0.75rem !important;
+      }
+      
+      .row {
+        flex-direction: column !important;
+        gap: 8px;
+        
+        .col, .col-auto {
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 400px) {
+  .mobile-card-section {
+    padding: 10px !important;
+  }
+  
+  .news-card {
+    .q-img {
+      height: 150px !important;
+    }
+    
+    .news-title {
+      font-size: 0.95rem !important;
+    }
+    
+    .news-description {
+      font-size: 0.8rem !important;
+    }
+  }
+  
+  .mobile-news-meta {
+    font-size: 0.75rem !important;
+    
+    .country-flag {
+      font-size: 1rem !important;
+    }
+  }
+}
+
+// Стили для диалога просмотра новости
+.dialog-news-section {
+  padding: 0 !important;
+}
+
+.dialog-image-wrapper {
+  width: 100%;
+  margin-bottom: 20px;
+  
+  .dialog-news-image {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+// Ограничение размера изображения в диалоге для десктопа
+@media (min-width: 600px) {
+  .dialog-image-wrapper {
+    max-width: 800px;
+    max-height: 450px;
+    margin: 0 auto 20px auto;
+    overflow: hidden;
+    
+    .dialog-news-image {
+      max-height: 450px;
+      object-fit: contain;
+      width: 100%;
+    }
+  }
+}
+
+.dialog-news-content {
+  padding: 20px;
+  
+  .news-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .news-title {
+    font-size: 1.4rem;
+    line-height: 1.5;
+    font-weight: 600;
+    margin-bottom: 16px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .news-description {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .news-content-text {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+// Адаптация диалога просмотра новости для мобильных
+@media (max-width: 599px) {
+  .q-dialog .q-card {
+    margin: 0 !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+  }
+  
+  .dialog-news-content {
+    padding: 16px !important;
+    
+    .news-meta {
+      font-size: 0.875rem;
+      gap: 6px;
+      
+      .country-flag {
+        font-size: 1rem;
+      }
+      
+      .source-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+    }
+    
+    .news-title {
+      font-size: 1.2rem !important;
+      line-height: 1.4 !important;
+      margin-bottom: 12px !important;
+    }
+    
+    .news-description {
+      font-size: 0.95rem !important;
+      line-height: 1.6 !important;
+      margin-bottom: 12px !important;
+    }
+    
+    .news-content-text {
+      font-size: 0.9rem !important;
+      line-height: 1.6 !important;
+    }
+    
+    .q-chip {
+      font-size: 0.8rem !important;
+      height: 28px !important;
+    }
+  }
+}
+
+@media (max-width: 400px) {
+  .dialog-news-content {
+    padding: 12px !important;
+    
+    .news-title {
+      font-size: 1.1rem !important;
+    }
+    
+    .news-description {
+      font-size: 0.9rem !important;
+    }
+    
+    .news-content-text {
+      font-size: 0.85rem !important;
+    }
   }
 }
 </style>

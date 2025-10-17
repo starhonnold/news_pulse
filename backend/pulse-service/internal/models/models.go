@@ -68,6 +68,7 @@ type PersonalizedNews struct {
 	ID             int       `json:"id" db:"id"`
 	Title          string    `json:"title" db:"title"`
 	Description    string    `json:"description" db:"description"`
+	Content        string    `json:"content" db:"content"`
 	URL            string    `json:"url" db:"url"`
 	ImageURL       string    `json:"image_url" db:"image_url"`
 	Author         string    `json:"author" db:"author"`
@@ -84,6 +85,7 @@ type PersonalizedNews struct {
 	CategoryName  string `json:"category_name,omitempty" db:"category_name"`
 	CategorySlug  string `json:"category_slug,omitempty" db:"category_slug"`
 	CategoryColor string `json:"category_color,omitempty" db:"category_color"`
+	CategoryIcon  string `json:"category_icon,omitempty" db:"category_icon"`
 
 	// Теги новости
 	Tags []string `json:"tags,omitempty" db:"-"`
@@ -152,7 +154,7 @@ type PulseRequest struct {
 	Keywords           string `json:"keywords" validate:"max=500"`
 	RefreshIntervalMin int    `json:"refresh_interval_min" validate:"min=5,max=1440"`
 	SourceIDs          []int  `json:"source_ids" validate:"required,min=1,max=50"`
-	CategoryIDs        []int  `json:"category_ids" validate:"max=10"`
+	CategoryIDs        []int  `json:"category_ids" validate:"max=12"`
 	IsActive           *bool  `json:"is_active,omitempty"`
 	IsDefault          *bool  `json:"is_default,omitempty"`
 }
@@ -270,8 +272,8 @@ func (r *PulseRequest) Validate() error {
 		return fmt.Errorf("maximum 50 sources allowed per pulse")
 	}
 
-	if len(r.CategoryIDs) > 10 {
-		return fmt.Errorf("maximum 10 categories allowed per pulse")
+	if len(r.CategoryIDs) > 12 {
+		return fmt.Errorf("maximum 12 categories allowed per pulse")
 	}
 
 	return nil

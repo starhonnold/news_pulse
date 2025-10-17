@@ -1,230 +1,331 @@
 package services
 
 import (
-	"bytes"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/andybalholm/brotli"
+	"github.com/go-shiori/go-readability"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
 )
 
-// ContentExtractor представляет извлекатель контента с веб-страниц
+// ContentExtractor извлекает основной текст статей с веб-страниц.
 type ContentExtractor struct {
 	logger *logrus.Logger
-	client *http.Client
 	config *ContentExtractorConfig
+	client *http.Client
 }
 
-// ContentExtractorConfig представляет конфигурацию извлекателя контента
+// ContentExtractorConfig конфигурация извлекателя контента.
 type ContentExtractorConfig struct {
-	RequestTimeout   time.Duration
-	MaxContentSize   int64
-	UserAgent        string
-	EnableFullText   bool
-	ContentSelectors []string // CSS селекторы для извлечения контента
-	ExcludeSelectors []string // CSS селекторы для исключения контента
+	RequestTimeout time.Duration
+	UserAgent      string
+	EnableFullText bool
 }
 
-// NewContentExtractor создает новый извлекатель контента
-func NewContentExtractor(logger *logrus.Logger, config *ContentExtractorConfig) *ContentExtractor {
+// NewContentExtractor создает новый извлекатель контента.
+// Если config == nil, применяются значения по умолчанию.
+func NewContentExtractor(logger *logrus.Logger, config *ContentExtractorConfig) (*ContentExtractor, error) {
 	if config == nil {
 		config = &ContentExtractorConfig{
-			RequestTimeout:   30 * time.Second,
-			MaxContentSize:   5 * 1024 * 1024, // 5MB
-			UserAgent:        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-			EnableFullText:   true,
-			ContentSelectors: []string{"article", ".article", ".content", ".post", ".news-content", "main", ".main-content"},
-			ExcludeSelectors: []string{"script", "style", "nav", "header", "footer", ".advertisement", ".ads", ".sidebar"},
+			RequestTimeout: 30 * time.Second,
+			UserAgent:      "Mozilla/5.0 (compatible; GoReadabilityBot/1.0)",
+			EnableFullText: true,
 		}
+	}
+	if logger == nil {
+		logger = logrus.New()
+	}
+
+	// Транспорт с дополнительными таймаутами.
+	tr := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		IdleConnTimeout:       30 * time.Second,
 	}
 
 	client := &http.Client{
-		Timeout: config.RequestTimeout,
+		Timeout:   config.RequestTimeout, // общий дедлайн на запрос
+		Transport: tr,
+		// По умолчанию редиректы разрешены; можно ограничить при желании:
+		// CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		// 	if len(via) >= 5 { return fmt.Errorf("stopped after 5 redirects") }
+		// 	return nil
+		// },
 	}
+
+	logger.Info("Creating content extractor with go-readability")
 
 	return &ContentExtractor{
 		logger: logger,
-		client: client,
 		config: config,
-	}
+		client: client,
+	}, nil
 }
 
-// ExtractFullContent извлекает полный текст статьи с веб-страницы
-func (e *ContentExtractor) ExtractFullContent(ctx context.Context, url string) (string, error) {
+// ExtractFullContent извлекает основной текст статьи с помощью go-readability.
+// Возвращает очищенный текст или ошибку.
+func (e *ContentExtractor) ExtractFullContent(ctx context.Context, pageURL string) (string, error) {
 	if !e.config.EnableFullText {
 		return "", nil
 	}
+	if !e.IsValidURL(pageURL) {
+		return "", fmt.Errorf("invalid URL: %s", pageURL)
+	}
 
-	e.logger.WithField("url", url).Debug("Extracting full content from URL")
+	e.logger.WithField("url", pageURL).Debug("Extracting full content from URL with go-readability")
 
-	// Создаем HTTP запрос
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	// Создаем запрос
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-
-	// Устанавливаем заголовки
+	// ВАЖНО: не ставим Accept-Encoding вручную — stdlib сама разожмет gzip.
 	req.Header.Set("User-Agent", e.config.UserAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.8")
-	req.Header.Set("Accept-Encoding", "gzip, deflate")
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Cache-Control", "no-cache")
 
 	// Выполняем запрос
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch page: %w", err)
+		return "", fmt.Errorf("failed to fetch URL: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Проверяем статус ответа
+	// Проверяем статус
+	if resp.StatusCode == http.StatusNotFound {
+		e.logger.WithField("url", pageURL).Debug("Article not found (404)")
+		return "", fmt.Errorf("article not found: HTTP 404")
+	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+		return "", fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 
-	// Проверяем размер контента
-	if resp.ContentLength > e.config.MaxContentSize {
-		return "", fmt.Errorf("content too large: %d bytes", resp.ContentLength)
+	// Проверяем тип содержимого (ожидаем HTML)
+	if ct := resp.Header.Get("Content-Type"); ct != "" && !strings.Contains(strings.ToLower(ct), "text/html") {
+		return "", fmt.Errorf("unsupported content type: %s", ct)
 	}
 
-	// Ограничиваем размер читаемых данных
-	limitedReader := io.LimitReader(resp.Body, e.config.MaxContentSize)
-
-	// Парсим HTML
-	doc, err := html.Parse(limitedReader)
+	// 1) Декодируем тело по Content-Encoding (gzip/br/deflate/identity)
+	decodedBody, err := decodeBody(resp)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse HTML: %w", err)
+		return "", fmt.Errorf("failed to decode body: %w", err)
+	}
+	// Закрывать будем decodedBody, если это не исходный resp.Body:
+	defer func() {
+		if c, ok := decodedBody.(io.Closer); ok && decodedBody != resp.Body {
+			_ = c.Close()
+		}
+	}()
+
+	// 2) Перекодируем в UTF-8 с учетом заголовков и <meta charset=...>
+	utf8Body, err := toUTF8Reader(decodedBody, resp)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert to UTF-8: %w", err)
 	}
 
-	// Извлекаем контент
-	content := e.extractTextFromNode(doc)
+	// 3) (опционально) ограничим размер входного потока
+	// utf8Body = io.LimitReader(utf8Body, 5<<20) // 5MB
 
-	// Очищаем и форматируем текст
-	content = e.cleanText(content)
+	// 4) Читаем через go-readability
+	parsedURL, err := url.Parse(pageURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	e.logger.WithField("url", pageURL).Debug("Calling go-readability.FromReader")
+	article, err := readability.FromReader(utf8Body, parsedURL)
+	if err != nil {
+		e.logger.WithError(err).Error("go-readability failed to extract content")
+		return "", fmt.Errorf("failed to extract content with readability: %w", err)
+	}
+
+	// Логируем
+	e.logger.WithFields(logrus.Fields{
+		"url":         pageURL,
+		"title":       article.Title,
+		"text_length": len([]rune(article.TextContent)),
+		"excerpt":     article.Excerpt,
+	}).Debug("go-readability successfully extracted content")
+
+	// Проверяем длину (порог можно ослабить/изменить)
+	if len([]rune(article.TextContent)) < 80 {
+		return "", fmt.Errorf("insufficient content extracted: %d characters", len([]rune(article.TextContent)))
+	}
+
+	// Чистим и ограничиваем безопасно по рунам
+	content := e.cleanText(article.TextContent)
+
+	// Дополнительная очистка для go-readability
+	content = e.cleanReadabilityContent(content, pageURL, article.Title)
 
 	e.logger.WithFields(logrus.Fields{
-		"url":            url,
-		"content_length": len(content),
-	}).Debug("Extracted full content")
+		"url":            pageURL,
+		"title":          article.Title,
+		"content_length": len([]rune(content)),
+		"excerpt":        article.Excerpt,
+	}).Debug("Successfully extracted and cleaned content")
 
 	return content, nil
 }
 
-// extractTextFromNode извлекает текст из HTML узла
-func (e *ContentExtractor) extractTextFromNode(n *html.Node) string {
-	var result strings.Builder
+// decodeBody распаковывает тело ответа согласно Content-Encoding.
+func decodeBody(resp *http.Response) (io.ReadCloser, error) {
+	body := resp.Body
+	ce := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding")))
 
-	// Проверяем, нужно ли исключить этот узел
-	if e.shouldExcludeNode(n) {
-		return ""
-	}
-
-	// Если это текстовый узел, добавляем его содержимое
-	if n.Type == html.TextNode {
-		text := strings.TrimSpace(n.Data)
-		if text != "" {
-			result.WriteString(text)
-			result.WriteString(" ")
+	switch ce {
+	case "":
+		// Пусто — stdlib могла уже разжать gzip автоматически (Transparent Decompression).
+		return body, nil
+	case "gzip":
+		gr, err := gzip.NewReader(body)
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	// Рекурсивно обрабатываем дочерние узлы
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		childText := e.extractTextFromNode(c)
-		if childText != "" {
-			result.WriteString(childText)
+		return gr, nil
+	case "br":
+		// Brotli через внешний пакет.
+		return io.NopCloser(brotli.NewReader(body)), nil
+	case "deflate":
+		// Сначала пробуем zlib, если не вышло — сырой deflate.
+		zr, err := zlib.NewReader(body)
+		if err == nil {
+			return zr, nil
 		}
+		fr := flate.NewReader(body)
+		return fr, nil
+	default:
+		// Неожиданный кодек — отдаем как есть.
+		return body, nil
 	}
-
-	return result.String()
 }
 
-// shouldExcludeNode проверяет, нужно ли исключить узел
-func (e *ContentExtractor) shouldExcludeNode(n *html.Node) bool {
-	if n.Type != html.ElementNode {
-		return false
-	}
-
-	// Проверяем теги для исключения
-	excludeTags := map[string]bool{
-		"script": true, "style": true, "nav": true, "header": true,
-		"footer": true, "aside": true, "noscript": true, "iframe": true,
-	}
-
-	if excludeTags[n.Data] {
-		return true
-	}
-
-	// Проверяем CSS классы для исключения
-	for _, attr := range n.Attr {
-		if attr.Key == "class" {
-			class := strings.ToLower(attr.Val)
-			for _, excludeClass := range e.config.ExcludeSelectors {
-				if strings.Contains(class, strings.ToLower(excludeClass)) {
-					return true
-				}
-			}
+// toUTF8Reader возвращает Reader в UTF-8, учитывая Content-Type/charset и meta-charset.
+func toUTF8Reader(r io.Reader, resp *http.Response) (io.Reader, error) {
+	ctHeader := resp.Header.Get("Content-Type")
+	_, params, _ := mime.ParseMediaType(ctHeader)
+	if cs, ok := params["charset"]; ok && cs != "" {
+		utf8r, err := charset.NewReaderLabel(strings.ToLower(cs), r)
+		if err == nil {
+			return utf8r, nil
 		}
 	}
-
-	return false
+	// Автоопределение по байтам/мета-тегам
+	utf8r, err := charset.NewReader(r, ctHeader)
+	if err == nil {
+		return utf8r, nil
+	}
+	// Если уже UTF-8 или определить не удалось — возвращаем как есть.
+	return r, nil
 }
 
-// cleanText очищает и форматирует извлеченный текст
+// cleanReadabilityContent дополнительно очищает контент, извлеченный go-readability
+func (e *ContentExtractor) cleanReadabilityContent(content, pageURL, title string) string {
+	// Удаляем URL страницы из начала контента
+	content = strings.TrimPrefix(content, pageURL)
+
+	// Удаляем повторяющиеся заголовки (более точное регулярное выражение)
+	titlePattern := regexp.MustCompile(`(` + regexp.QuoteMeta(title) + `)+`)
+	content = titlePattern.ReplaceAllString(content, title)
+
+	// Удаляем метаданные и теги в конце
+	content = regexp.MustCompile(`\s*РИА Новости, \d{2}\.\d{2}\.\d{4}.*$`).ReplaceAllString(content, "")
+	content = regexp.MustCompile(`\s*-\s*РИА Новости.*$`).ReplaceAllString(content, "")
+
+	// Удаляем повторяющиеся даты и временные метки
+	content = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}`).ReplaceAllString(content, "")
+	content = regexp.MustCompile(`\d{2}\.\d{2}\.\d{4}\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}`).ReplaceAllString(content, "")
+
+	// Удаляем теги и метаданные в конце
+	content = regexp.MustCompile(`\s*[а-яё\s]+(россия|москва|костромская область|татьяна москалькова|федеральная служба исполнения наказаний|фсин россии|единый день голосования|2025).*$`).ReplaceAllString(content, "")
+
+	// Удаляем URL изображений
+	content = regexp.MustCompile(`https://[^\s]+\.(jpg|jpeg|png|gif|webp)[^\s]*`).ReplaceAllString(content, "")
+
+	// Удаляем "MOCKBА" и подобные артефакты
+	content = regexp.MustCompile(`MOCKB[А-Яа-я]+`).ReplaceAllString(content, "")
+
+	// Удаляем дублирующиеся заголовки в начале
+	content = regexp.MustCompile(`^(`+regexp.QuoteMeta(title)+`\s*)+`).ReplaceAllString(content, title+" ")
+
+	// НОВОЕ: Удаляем связанные новости и рекламные блоки
+	// Удаляем блоки, которые начинаются с "Читать далее" или "Читать полностью"
+	content = regexp.MustCompile(`\s*Читать далее.*$`).ReplaceAllString(content, "")
+	content = regexp.MustCompile(`\s*Читать полностью.*$`).ReplaceAllString(content, "")
+
+	// Удаляем блоки, которые выглядят как отдельные новости (содержат имена людей и "вспомнил", "заявил" и т.д.)
+	content = regexp.MustCompile(`\s*[А-Яа-яё]+ [А-Яа-яё]+ [А-Яа-яё]+ (вспомнил|заявил|отметил|сообщил|рассказал|подчеркнул).*$`).ReplaceAllString(content, "")
+
+	// Удаляем блоки с футбольными командами и игроками (часто реклама)
+	content = regexp.MustCompile(`\s*[А-Яа-яё]+ [А-Яа-яё]+ «[А-Яа-яё]+» [А-Яа-яё]+.*$`).ReplaceAllString(content, "")
+
+	// Удаляем блоки, которые содержат "сборной России" (часто реклама)
+	content = regexp.MustCompile(`\s*[А-Яа-яё\s]+сборной России[А-Яа-яё\s]*.*$`).ReplaceAllString(content, "")
+
+	// Удаляем блоки с клубами и командами
+	content = regexp.MustCompile(`\s*[А-Яа-яё\s]+«[А-Яа-яё]+»[А-Яа-яё\s]*.*$`).ReplaceAllString(content, "")
+
+	// Удаляем блоки, которые содержат "интересуются" (часто реклама)
+	content = regexp.MustCompile(`\s*[А-Яа-яё\s]+интересуются[А-Яа-яё\s]*.*$`).ReplaceAllString(content, "")
+
+	// Удаляем блоки, которые содержат "клубе" (часто реклама)
+	content = regexp.MustCompile(`\s*[А-Яа-яё\s]+клубе[А-Яа-яё\s]*.*$`).ReplaceAllString(content, "")
+
+	// Очищаем от лишних пробелов
+	content = strings.TrimSpace(content)
+
+	return content
+}
+
+// cleanText приводит текст к аккуратному виду и безопасно обрезает по рунам.
 func (e *ContentExtractor) cleanText(text string) string {
-	// Удаляем лишние пробелы и переносы строк
-	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
+	// Приводим переводы строк к \n и обрезаем края
+	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.TrimSpace(text)
 
-	// Удаляем HTML entities
-	text = strings.ReplaceAll(text, "&nbsp;", " ")
-	text = strings.ReplaceAll(text, "&amp;", "&")
-	text = strings.ReplaceAll(text, "&lt;", "<")
-	text = strings.ReplaceAll(text, "&gt;", ">")
-	text = strings.ReplaceAll(text, "&quot;", "\"")
-	text = strings.ReplaceAll(text, "&#39;", "'")
+	// Схлопываем длинные последовательности пробелов/табов в один пробел,
+	// но не трогаем переводы строк
+	reSpaces := regexp.MustCompile(`[ \t]+`)
+	text = reSpaces.ReplaceAllString(text, " ")
 
-	// Удаляем повторяющиеся знаки препинания
-	text = regexp.MustCompile(`[.]{2,}`).ReplaceAllString(text, ".")
-	text = regexp.MustCompile(`[!]{2,}`).ReplaceAllString(text, "!")
-	text = regexp.MustCompile(`[?]{2,}`).ReplaceAllString(text, "?")
+	// (Опционально) Схлопнуть 3+ пустых строк до одной пустой строки
+	reGaps := regexp.MustCompile(`\n{3,}`)
+	text = reGaps.ReplaceAllString(text, "\n\n")
 
-	// Ограничиваем длину контента
-	maxLength := 50000 // 50KB текста
-	if len(text) > maxLength {
-		text = text[:maxLength] + "..."
+	// Ограничиваем длину контента по рунам (без порчи UTF-8)
+	const maxRunes = 10000 // ~10K символов
+	runes := []rune(text)
+	if len(runes) > maxRunes {
+		text = string(runes[:maxRunes]) + "..."
 	}
-
 	return text
 }
 
-// ExtractContentFromRSS извлекает контент из RSS элемента
-func (e *ContentExtractor) ExtractContentFromRSS(description, content string) string {
-	// Если есть полный контент, используем его
-	if content != "" {
-		return e.cleanText(content)
-	}
-
-	// Иначе используем описание
-	if description != "" {
-		return e.cleanText(description)
-	}
-
-	return ""
+// Close закрывает ресурсы (сейчас нечего закрывать, оставлено для совместимости).
+func (e *ContentExtractor) Close() error {
+	return nil
 }
 
-// IsValidURL проверяет, является ли URL валидным для извлечения контента
-func (e *ContentExtractor) IsValidURL(url string) bool {
-	// Простая проверка URL
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+// IsValidURL выполняет базовую проверку URL для извлечения контента.
+func (e *ContentExtractor) IsValidURL(pageURL string) bool {
+	// Простая проверка схемы
+	if !strings.HasPrefix(pageURL, "http://") && !strings.HasPrefix(pageURL, "https://") {
 		return false
 	}
 
@@ -235,144 +336,11 @@ func (e *ContentExtractor) IsValidURL(url string) bool {
 		".mp3", ".mp4", ".avi", ".mov", ".wmv",
 		".zip", ".rar", ".7z", ".tar", ".gz",
 	}
-
-	urlLower := strings.ToLower(url)
+	urlLower := strings.ToLower(pageURL)
 	for _, pattern := range excludePatterns {
 		if strings.Contains(urlLower, pattern) {
 			return false
 		}
 	}
-
 	return true
-}
-
-// OpenRouterContentRequest структура запроса к OpenRouter API для извлечения контента
-type OpenRouterContentRequest struct {
-	Model       string           `json:"model"`
-	Messages    []ContentMessage `json:"messages"`
-	MaxTokens   int              `json:"max_tokens,omitempty"`
-	Temperature float64          `json:"temperature,omitempty"`
-}
-
-// ContentMessage структура сообщения для OpenRouter
-type ContentMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// OpenRouterContentResponse структура ответа от OpenRouter API
-type OpenRouterContentResponse struct {
-	Choices []ContentChoice `json:"choices"`
-	Error   *ContentError   `json:"error,omitempty"`
-}
-
-// ContentChoice структура выбора из ответа
-type ContentChoice struct {
-	Message ContentMessage `json:"message"`
-}
-
-// ContentError структура ошибки
-type ContentError struct {
-	Message string `json:"message"`
-	Type    string `json:"type"`
-}
-
-// ExtractFullContentWithAI извлекает полный текст статьи с помощью OpenRouter AI
-func (e *ContentExtractor) ExtractFullContentWithAI(ctx context.Context, url string) (string, error) {
-	e.logger.WithField("url", url).Debug("Extracting full content using AI")
-
-	// API ключ OpenAI
-	apiKey := e.config.OpenAIAPIKey
-
-	// Формируем промпт для AI
-	prompt := fmt.Sprintf(`Пожалуйста, извлеки полный текст новости по ссылке: %s
-
-Требования:
-1. Извлеки только основной текст новости, без рекламы, навигации, комментариев
-2. Сохрани структуру текста (абзацы, заголовки)
-3. Удали все HTML-теги и оставь только чистый текст
-4. Если новость недоступна или не найдена, верни "Новость недоступна"
-5. Ограничь текст до 5000 символов
-
-Ответь только текстом новости, без дополнительных комментариев.`, url)
-
-	// Создаем запрос к OpenRouter
-	request := OpenRouterContentRequest{
-		Model: "openai/gpt-4o-mini:online",
-		Messages: []ContentMessage{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
-		},
-		MaxTokens:   2000,
-		Temperature: 0.1,
-	}
-
-	// Сериализуем запрос
-	requestBody, err := json.Marshal(request)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// Создаем HTTP запрос
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(requestBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Устанавливаем заголовки
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("X-OpenAI-API-Key", apiKey)
-	req.Header.Set("HTTP-Referer", "https://news-pulse.local")
-	req.Header.Set("X-Title", "News Pulse Content Extractor")
-
-	// Выполняем запрос
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Читаем ответ
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Проверяем статус ответа
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
-	}
-
-	// Парсим ответ
-	var response OpenRouterContentResponse
-	if err := json.Unmarshal(responseBody, &response); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	// Проверяем на ошибки
-	if response.Error != nil {
-		return "", fmt.Errorf("OpenRouter error: %s", response.Error.Message)
-	}
-
-	// Извлекаем контент
-	if len(response.Choices) == 0 {
-		return "", fmt.Errorf("no content in response")
-	}
-
-	content := strings.TrimSpace(response.Choices[0].Message.Content)
-
-	// Если AI вернул "Новость недоступна", возвращаем пустую строку
-	if strings.Contains(strings.ToLower(content), "новость недоступна") {
-		return "", nil
-	}
-
-	e.logger.WithFields(logrus.Fields{
-		"url":            url,
-		"content_length": len(content),
-	}).Debug("Extracted full content using AI")
-
-	return content, nil
 }

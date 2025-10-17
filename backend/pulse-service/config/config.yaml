@@ -9,8 +9,8 @@ server:
   idle_timeout: 120s
 
 database:
-  host: "postgres"
-  port: 5432
+  host: "localhost"
+  port: 5433
   user: "news_pulse_user"
   password: "news_pulse_secure_password_2024"
   dbname: "news_pulse"
@@ -25,7 +25,7 @@ api:
   # Максимальное количество источников в пульсе
   max_sources_per_pulse: 50
   # Максимальное количество категорий в пульсе
-  max_categories_per_pulse: 10
+  max_categories_per_pulse: 12
   # Максимальное количество новостей в персонализированной ленте
   max_news_per_feed: 100
   # Размер страницы по умолчанию для ленты

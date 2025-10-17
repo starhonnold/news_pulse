@@ -1,4 +1,4 @@
-import { api } from 'boot/api'
+import { api, createRequest } from 'boot/api'
 
 // Сервис для работы с новостями
 export const newsService = {
@@ -38,32 +38,32 @@ export const newsService = {
 export const pulseService = {
   // Получить пульсы пользователя
   getUserPulses() {
-    return api.get('/pulses')
+    return createRequest({ method: 'GET', url: '/pulses' })
   },
 
   // Создать новый пульс
   createPulse(pulseData) {
-    return api.post('/pulses', pulseData)
+    return createRequest({ method: 'POST', url: '/pulses', data: pulseData })
   },
 
   // Обновить пульс
   updatePulse(id, pulseData) {
-    return api.put(`/pulses/${id}`, pulseData)
+    return createRequest({ method: 'PUT', url: `/pulses/${id}`, data: pulseData })
   },
 
   // Удалить пульс
   deletePulse(id) {
-    return api.delete(`/pulses/${id}`)
+    return createRequest({ method: 'DELETE', url: `/pulses/${id}` })
   },
 
-  // Получить новости для пульса
+  // Получить новости для пульса (с retry логикой)
   getPulseNews(id, params = {}) {
-    return api.get(`/pulses/${id}/news`, { params })
+    return createRequest({ method: 'GET', url: `/pulses/${id}/news`, params })
   },
 
-  // Обновить новости пульса
+  // Обновить новости пульса (с retry логикой)
   refreshPulse(id) {
-    return api.post(`/pulses/${id}/refresh`)
+    return createRequest({ method: 'POST', url: `/pulses/${id}/refresh` })
   }
 }
 
@@ -71,18 +71,18 @@ export const pulseService = {
 export const referenceService = {
   // Получить список категорий
   getCategories() {
-    return api.get('/categories')
+    return createRequest({ method: 'GET', url: '/categories' })
   },
 
   // Получить список стран
   getCountries() {
-    return api.get('/countries')
+    return createRequest({ method: 'GET', url: '/countries' })
   },
 
   // Получить список источников
   getSources(countryId = null) {
     const params = countryId ? { country_id: countryId } : {}
-    return api.get('/sources', { params })
+    return createRequest({ method: 'GET', url: '/sources', params })
   }
 }
 
@@ -100,9 +100,9 @@ export const notificationService = {
 
   // Подписаться на WebSocket уведомления
   subscribeToNotifications() {
-    const wsUrl = process.env.NODE_ENV === 'production' 
-      ? 'ws://localhost:8080/ws' 
-      : 'ws://localhost:8080/ws'
+    // Используем относительный путь для WebSocket через Nginx прокси
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/ws`
     
     return new WebSocket(wsUrl)
   }

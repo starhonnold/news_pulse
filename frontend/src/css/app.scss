@@ -60,11 +60,19 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', sans-serif;
+  font-family: 'Lato', 'Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-primary);
   color: var(--text-primary);
+  
+  // Улучшение читаемости на мобильных
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  
+  // Улучшение скроллинга на мобильных
+  -webkit-overflow-scrolling: touch;
 }
 
 // Quasar body override для светлой темы
@@ -105,6 +113,7 @@ html, body {
 .text-truncate-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
@@ -113,6 +122,7 @@ html, body {
 .text-truncate-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
@@ -682,6 +692,40 @@ html, body {
 }
 
 // Адаптивность
+
+// Десктопные стили для изображений новостей
+@media (min-width: 600px) {
+  .news-card {
+    display: flex;
+    flex-direction: row;
+    
+    .news-image-wrapper {
+      width: 240px;
+      min-width: 240px;
+      max-width: 240px;
+      height: 160px;
+      flex-shrink: 0;
+      
+      .news-image {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-card {
+    .news-image-wrapper {
+      width: 280px;
+      min-width: 280px;
+      max-width: 280px;
+      height: 180px;
+    }
+  }
+}
+
 @media (max-width: 1023px) {
   .q-header .q-toolbar {
     padding: 0 16px;
@@ -701,41 +745,328 @@ html, body {
 }
 
 @media (max-width: 599px) {
-  .q-header .search-input {
-    min-width: 200px !important;
+  // Улучшение читаемости текста на мобильных
+  body {
+    font-size: 16px !important; // Минимальный размер для читаемости
+    line-height: 1.5 !important;
   }
   
+  // Минимальные размеры для кликабельных элементов (44px - рекомендация Apple/Google)
+  .q-btn,
+  .q-chip,
+  .q-tab,
+  .q-item,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation; // Улучшение отклика на касания
+  }
+  
+  // Увеличение контрастности текста
+  .text-grey-7,
+  .text-grey-8 {
+    color: var(--text-secondary) !important;
+  }
+  
+  .text-caption {
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+  }
+  
+  .text-body1,
+  .text-body2 {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+  }
+  
+  // Хедер
+  .q-header {
+    .q-toolbar {
+      padding: 0 8px !important;
+      min-height: 56px !important;
+    }
+    
+    .search-input {
+      min-width: 150px !important;
+    }
+  }
+  
+  // Основной контент
+  .q-page {
+    padding: 12px 8px !important;
+  }
+  
+  .q-pa-sm {
+    padding: 8px !important;
+  }
+  
+  .q-pa-md {
+    padding: 12px !important;
+  }
+  
+  // Карточки новостей
   .news-card {
-    margin-bottom: 16px;
-    border-radius: 12px;
+    margin-bottom: 16px !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    display: block !important; // Переопределяем flex для мобильных
+    flex-direction: column !important;
     
     .q-card-section {
-      padding: 16px;
+      padding: 16px !important;
+    }
+    
+    .news-image-wrapper {
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+      
+      .news-image {
+        width: 100%;
+      }
     }
     
     .news-title {
-      font-size: 1.1rem;
+      font-size: 1.1rem !important;
+      line-height: 1.5 !important;
+      font-weight: 600 !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
     
-    .row.no-wrap {
-      flex-direction: column;
+    .news-description {
+      font-size: 0.95rem !important;
+      line-height: 1.6 !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
     
-    .q-img {
-      width: 100% !important;
-      height: 200px !important;
-      border-radius: 12px;
+    // Метаданные
+    .news-meta {
+      font-size: 0.875rem !important;
+      flex-wrap: wrap;
+      gap: 8px;
+      
+      .country-flag {
+        font-size: 1rem !important;
+      }
+      
+      .source-name {
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+      }
+    }
+    
+    // Чипы категорий
+    .q-chip {
+      font-size: 0.8rem !important;
+      height: 28px !important;
+      margin: 2px !important;
     }
   }
   
+  // Сайдбар/Drawer
   .q-drawer {
     .q-card {
       border-radius: 12px;
       
       .q-card-section {
-        padding: 16px;
+        padding: 12px !important;
       }
     }
+  }
+  
+  // Заголовки
+  .text-h4 {
+    font-size: 1.5rem !important;
+  }
+  
+  .text-h5 {
+    font-size: 1.25rem !important;
+  }
+  
+  .text-h6 {
+    font-size: 1.1rem !important;
+  }
+  
+  // Кнопки
+  .q-btn {
+    padding: 8px 12px !important;
+    
+    &.q-btn--dense {
+      padding: 4px 8px !important;
+    }
+  }
+  
+  // Формы и инпуты
+  .q-field {
+    margin-bottom: 12px !important;
+    
+    .q-field__control {
+      min-height: 40px !important;
+    }
+  }
+  
+  // Диалоги
+  .q-dialog {
+    .q-card {
+      margin: 8px !important;
+      max-width: calc(100% - 16px) !important;
+      
+      .q-card-section {
+        padding: 12px !important;
+      }
+    }
+  }
+  
+  // Статистические карточки
+  .status-card {
+    .q-card-section {
+      padding: 12px !important;
+      
+      .text-caption {
+        font-size: 0.75rem !important;
+      }
+    }
+  }
+  
+  // Фильтры
+  .modern-card {
+    border-radius: 12px !important;
+    
+    .q-card-section {
+      padding: 12px !important;
+    }
+  }
+}
+
+@media (max-width: 400px) {
+  // Еще более компактный режим
+  .q-header .q-toolbar {
+    padding: 0 4px !important;
+    min-height: 52px !important;
+  }
+  
+  .q-page {
+    padding: 8px 4px !important;
+  }
+  
+  .news-card {
+    .q-card-section {
+      padding: 12px !important;
+    }
+    
+    .news-title {
+      font-size: 1rem !important;
+    }
+    
+    .news-description {
+      font-size: 0.9rem !important;
+    }
+    
+    .news-meta {
+      font-size: 0.8rem !important;
+      
+      .source-name {
+        font-size: 0.85rem !important;
+      }
+    }
+    
+    .q-chip {
+      font-size: 0.75rem !important;
+      height: 24px !important;
+      padding: 3px 8px !important;
+    }
+  }
+  
+  .text-h5 {
+    font-size: 1.1rem !important;
+  }
+  
+  .text-h6 {
+    font-size: 1rem !important;
+  }
+  
+  .q-btn {
+    padding: 6px 10px !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+// Дополнительные улучшения для мобильных устройств
+@media (max-width: 599px) {
+  // Предотвращение горизонтальной прокрутки
+  body,
+  .q-page-container,
+  .q-page {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  // Улучшение переноса длинного текста
+  .news-title,
+  .news-description,
+  .mobile-pulse-title,
+  .mobile-pulse-desc,
+  .text-h5,
+  .text-h6 {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    hyphens: auto !important;
+    -webkit-hyphens: auto !important;
+    -ms-hyphens: auto !important;
+  }
+  
+  // Улучшение отображения длинных ссылок и имен источников
+  .source-name,
+  .mobile-source-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  // Увеличение интервалов между кликабельными элементами
+  .news-actions .q-btn,
+  .news-action-buttons .q-btn {
+    margin: 4px !important;
+  }
+  
+  // Улучшение видимости разделителей
+  .q-separator {
+    opacity: 0.5;
+  }
+  
+  // Оптимизация изображений для мобильных
+  .q-img {
+    object-fit: cover !important;
+    background-color: var(--bg-tertiary) !important;
+  }
+  
+  // Улучшение отображения загрузки
+  .q-spinner {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  // Улучшение читаемости бэджей и чипов
+  .q-badge,
+  .q-chip {
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+  }
+  
+  // Увеличение контрастности ховер эффектов
+  .q-btn:active,
+  .q-item:active,
+  .q-tab:active {
+    opacity: 0.7 !important;
+  }
+  
+  // Улучшение фокуса для доступности
+  *:focus-visible {
+    outline: 2px solid var(--primary-color) !important;
+    outline-offset: 2px !important;
   }
 }
 

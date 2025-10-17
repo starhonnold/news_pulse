@@ -10,14 +10,16 @@ import (
 
 // Config представляет конфигурацию сервиса парсинга новостей
 type Config struct {
-	Server        ServerConfig   `yaml:"server"`
-	Database      DatabaseConfig `yaml:"database"`
-	Parsing       ParsingConfig  `yaml:"parsing"`
-	Logging       LoggingConfig  `yaml:"logging"`
-	Health        HealthConfig   `yaml:"health"`
-	Metrics       MetricsConfig  `yaml:"metrics"`
-	OpenAIAPIKey  string         `yaml:"openai_api_key"`
-	Environment   string         `yaml:"-"`
+	Server      ServerConfig   `yaml:"server"`
+	Database    DatabaseConfig `yaml:"database"`
+	Parsing     ParsingConfig  `yaml:"parsing"`
+	Logging     LoggingConfig  `yaml:"logging"`
+	Health      HealthConfig   `yaml:"health"`
+	Metrics     MetricsConfig  `yaml:"metrics"`
+	Proxy       ProxyConfig    `yaml:"proxy"`
+	AI          AIConfig       `yaml:"ai"`
+	FastText    FastTextConfig `yaml:"fasttext"`
+	Environment string         `yaml:"-"`
 }
 
 // ServerConfig конфигурация HTTP сервера
@@ -44,15 +46,15 @@ type DatabaseConfig struct {
 
 // ParsingConfig конфигурация парсинга RSS
 type ParsingConfig struct {
-	Interval              time.Duration `yaml:"interval"`
-	MaxConcurrentParsers  int           `yaml:"max_concurrent_parsers"`
-	RequestTimeout        time.Duration `yaml:"request_timeout"`
-	UserAgent             string        `yaml:"user_agent"`
-	MaxFeedSize           int64         `yaml:"max_feed_size"`
-	BatchSize             int           `yaml:"batch_size"`
-	EnableDeduplication   bool          `yaml:"enable_deduplication"`
-	MinTitleLength        int           `yaml:"min_title_length"`
-	MaxTitleLength        int           `yaml:"max_title_length"`
+	Interval             time.Duration `yaml:"interval"`
+	MaxConcurrentParsers int           `yaml:"max_concurrent_parsers"`
+	RequestTimeout       time.Duration `yaml:"request_timeout"`
+	UserAgent            string        `yaml:"user_agent"`
+	MaxFeedSize          int64         `yaml:"max_feed_size"`
+	BatchSize            int           `yaml:"batch_size"`
+	EnableDeduplication  bool          `yaml:"enable_deduplication"`
+	MinTitleLength       int           `yaml:"min_title_length"`
+	MaxTitleLength       int           `yaml:"max_title_length"`
 }
 
 // LoggingConfig конфигурация логирования
@@ -74,6 +76,35 @@ type MetricsConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	Port    int    `yaml:"port"`
 	Path    string `yaml:"path"`
+}
+
+// ProxyConfig конфигурация прокси
+type ProxyConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	URL      string `yaml:"url"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+// AIConfig конфигурация AI классификатора (Ollama - ОТКЛЮЧЕН)
+type AIConfig struct {
+	Enabled             bool          `yaml:"enabled"`
+	ModelURL            string        `yaml:"model_url"`
+	Timeout             time.Duration `yaml:"timeout"`
+	MaxRetries          int           `yaml:"max_retries"`
+	RetryDelay          time.Duration `yaml:"retry_delay"`
+	BatchSize           int           `yaml:"batch_size"`
+	ConfidenceThreshold float64       `yaml:"confidence_threshold"`
+	UseFallback         bool          `yaml:"use_fallback"`
+}
+
+// FastTextConfig конфигурация FastText классификатора
+type FastTextConfig struct {
+	Enabled       bool          `yaml:"enabled"`
+	ServiceURL    string        `yaml:"service_url"`
+	Timeout       time.Duration `yaml:"timeout"`
+	MinConfidence float64       `yaml:"min_confidence"`
+	UseFallback   bool          `yaml:"use_fallback"`
 }
 
 // LoadConfig загружает конфигурацию из файла и переменных окружения
@@ -168,9 +199,67 @@ func (c *Config) overrideFromEnv() {
 		c.Logging.Output = output
 	}
 
-	// OpenAI API Key
-	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
-		c.OpenAIAPIKey = apiKey
+	// Proxy configuration
+	if enabled := os.Getenv("PROXY_ENABLED"); enabled == "true" {
+		c.Proxy.Enabled = true
+	}
+	if url := os.Getenv("PROXY_URL"); url != "" {
+		c.Proxy.URL = url
+	}
+	if username := os.Getenv("PROXY_USERNAME"); username != "" {
+		c.Proxy.Username = username
+	}
+	if password := os.Getenv("PROXY_PASSWORD"); password != "" {
+		c.Proxy.Password = password
+	}
+
+	// AI Configuration (Ollama - DEPRECATED, use FastText instead)
+	if enabled := os.Getenv("AI_CLASSIFICATION_ENABLED"); enabled != "" {
+		c.AI.Enabled = enabled == "true"
+	}
+	if modelURL := os.Getenv("AI_MODEL_SERVICE_URL"); modelURL != "" {
+		c.AI.ModelURL = modelURL
+	}
+	if timeout := os.Getenv("AI_TIMEOUT_SECONDS"); timeout != "" {
+		if d := parseDuration(timeout+"s", c.AI.Timeout); d > 0 {
+			c.AI.Timeout = d
+		}
+	}
+	if maxRetries := os.Getenv("AI_MAX_RETRIES"); maxRetries != "" {
+		if mr := parseInt(maxRetries, c.AI.MaxRetries); mr > 0 {
+			c.AI.MaxRetries = mr
+		}
+	}
+	if batchSize := os.Getenv("AI_BATCH_SIZE"); batchSize != "" {
+		if bs := parseInt(batchSize, c.AI.BatchSize); bs > 0 {
+			c.AI.BatchSize = bs
+		}
+	}
+	if confidenceThreshold := os.Getenv("AI_CONFIDENCE_THRESHOLD"); confidenceThreshold != "" {
+		if ct := parseFloat(confidenceThreshold, c.AI.ConfidenceThreshold); ct >= 0 {
+			c.AI.ConfidenceThreshold = ct
+		}
+	}
+
+	// FastText Configuration
+	if enabled := os.Getenv("FASTTEXT_ENABLED"); enabled != "" {
+		c.FastText.Enabled = enabled == "true"
+	}
+	if serviceURL := os.Getenv("FASTTEXT_SERVICE_URL"); serviceURL != "" {
+		c.FastText.ServiceURL = serviceURL
+	}
+	if timeout := os.Getenv("FASTTEXT_TIMEOUT_SECONDS"); timeout != "" {
+		if d := parseDuration(timeout+"s", c.FastText.Timeout); d > 0 {
+			c.FastText.Timeout = d
+		}
+	}
+	if minConfidence := os.Getenv("FASTTEXT_MIN_CONFIDENCE"); minConfidence != "" {
+		if mc := parseFloat(minConfidence, c.FastText.MinConfidence); mc >= 0 {
+			c.FastText.MinConfidence = mc
+		}
+	}
+	if useFallback := os.Getenv("FASTTEXT_USE_FALLBACK"); useFallback != "" {
+		c.FastText.UseFallback = useFallback == "true"
 	}
 }
 
@@ -246,9 +335,33 @@ func parseInt(s string, defaultValue int) int {
 	if s == "" {
 		return defaultValue
 	}
-	
+
 	var result int
 	if _, err := fmt.Sscanf(s, "%d", &result); err != nil {
+		return defaultValue
+	}
+	return result
+}
+
+func parseDuration(s string, defaultValue time.Duration) time.Duration {
+	if s == "" {
+		return defaultValue
+	}
+
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return defaultValue
+	}
+	return d
+}
+
+func parseFloat(s string, defaultValue float64) float64 {
+	if s == "" {
+		return defaultValue
+	}
+
+	var result float64
+	if _, err := fmt.Sscanf(s, "%f", &result); err != nil {
 		return defaultValue
 	}
 	return result

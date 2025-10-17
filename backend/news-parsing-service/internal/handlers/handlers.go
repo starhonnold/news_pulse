@@ -8,19 +8,23 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"news-parsing-service/internal/models"
+	"news-parsing-service/internal/repository"
 	"news-parsing-service/internal/services"
 )
 
 // Handler представляет HTTP обработчики
 type Handler struct {
-	parsingService *services.ParsingService
-	logger         *logrus.Logger
+	parsingService   *services.ParsingService
+	newsSourceRepo   *repository.NewsSourceRepository
+	logger           *logrus.Logger
 }
 
 // NewHandler создает новый обработчик
-func NewHandler(parsingService *services.ParsingService, logger *logrus.Logger) *Handler {
+func NewHandler(parsingService *services.ParsingService, newsSourceRepo *repository.NewsSourceRepository, logger *logrus.Logger) *Handler {
 	return &Handler{
 		parsingService: parsingService,
+		newsSourceRepo: newsSourceRepo,
 		logger:         logger,
 	}
 }
@@ -42,14 +46,14 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 		"version":   "1.0.0",
 		"uptime":    time.Since(startTime),
 	}
-	
+
 	// Проверяем статус парсинга
 	if h.parsingService.IsRunning() {
 		health["parsing_status"] = "running"
 	} else {
 		health["parsing_status"] = "stopped"
 	}
-	
+
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
 		Data:    health,
@@ -58,16 +62,8 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // GetStats возвращает статистику парсинга
 func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.parsingService.GetStats(r.Context())
-	if err != nil {
-		h.logger.WithError(err).Error("Failed to get parsing stats")
-		h.sendResponse(w, http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   "Failed to get statistics",
-		})
-		return
-	}
-	
+	stats := h.parsingService.GetStats()
+
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
 		Data:    stats,
@@ -83,13 +79,11 @@ func (h *Handler) ParseAllSources(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	go func() {
-		if err := h.parsingService.ParseAllSources(r.Context()); err != nil {
-			h.logger.WithError(err).Error("Failed to parse all sources")
-		}
+		h.parsingService.ParseAllSources()
 	}()
-	
+
 	h.sendResponse(w, http.StatusAccepted, Response{
 		Success: true,
 		Message: "Parsing started",
@@ -105,7 +99,7 @@ func (h *Handler) ParseSource(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// Получаем ID источника из URL параметра
 	sourceIDStr := r.URL.Query().Get("source_id")
 	if sourceIDStr == "" {
@@ -115,7 +109,7 @@ func (h *Handler) ParseSource(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	sourceID, err := strconv.Atoi(sourceIDStr)
 	if err != nil {
 		h.sendResponse(w, http.StatusBadRequest, Response{
@@ -124,13 +118,17 @@ func (h *Handler) ParseSource(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	go func() {
-		if err := h.parsingService.ParseSource(r.Context(), sourceID); err != nil {
-			h.logger.WithError(err).WithField("source_id", sourceID).Error("Failed to parse source")
+		// Получаем источник по ID
+		source, err := h.newsSourceRepo.GetByID(r.Context(), sourceID)
+		if err != nil {
+			h.logger.WithError(err).WithField("source_id", sourceID).Error("Failed to get source")
+			return
 		}
+		h.parsingService.ParseSource(r.Context(), *source)
 	}()
-	
+
 	h.sendResponse(w, http.StatusAccepted, Response{
 		Success: true,
 		Message: "Source parsing started",
@@ -149,11 +147,11 @@ func (h *Handler) ValidateSource(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	var requestBody struct {
 		RSSURL string `json:"rss_url"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		h.sendResponse(w, http.StatusBadRequest, Response{
 			Success: false,
@@ -161,7 +159,7 @@ func (h *Handler) ValidateSource(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	if requestBody.RSSURL == "" {
 		h.sendResponse(w, http.StatusBadRequest, Response{
 			Success: false,
@@ -169,15 +167,16 @@ func (h *Handler) ValidateSource(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
-	if err := h.parsingService.ValidateSource(r.Context(), requestBody.RSSURL); err != nil {
+
+	source := models.NewsSource{RSSURL: requestBody.RSSURL}
+	if err := h.parsingService.ValidateSource(source); err != nil {
 		h.sendResponse(w, http.StatusBadRequest, Response{
 			Success: false,
 			Error:   err.Error(),
 		})
 		return
 	}
-	
+
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
 		Message: "RSS feed is valid",
@@ -196,11 +195,11 @@ func (h *Handler) GetFeedInfo(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	var requestBody struct {
 		RSSURL string `json:"rss_url"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		h.sendResponse(w, http.StatusBadRequest, Response{
 			Success: false,
@@ -208,7 +207,7 @@ func (h *Handler) GetFeedInfo(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	if requestBody.RSSURL == "" {
 		h.sendResponse(w, http.StatusBadRequest, Response{
 			Success: false,
@@ -216,7 +215,7 @@ func (h *Handler) GetFeedInfo(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	feedInfo, err := h.parsingService.GetFeedInfo(r.Context(), requestBody.RSSURL)
 	if err != nil {
 		h.sendResponse(w, http.StatusBadRequest, Response{
@@ -225,7 +224,7 @@ func (h *Handler) GetFeedInfo(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
 		Data:    feedInfo,
@@ -238,7 +237,7 @@ func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
 		"service_running": h.parsingService.IsRunning(),
 		"timestamp":       time.Now(),
 	}
-	
+
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
 		Data:    status,
@@ -249,7 +248,7 @@ func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) sendResponse(w http.ResponseWriter, statusCode int, response Response) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		h.logger.WithError(err).Error("Failed to encode response")
 	}
@@ -268,14 +267,14 @@ func (h *Handler) corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 func (h *Handler) loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Создаем wrapper для ResponseWriter чтобы захватить status code
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		
+
 		next(wrapped, r)
-		
+
 		duration := time.Since(start)
-		
+
 		h.logger.WithFields(logrus.Fields{
 			"method":      r.Method,
 			"url":         r.URL.String(),
@@ -298,13 +297,71 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
+// ExtractContentRequest представляет запрос на извлечение контента
+type ExtractContentRequest struct {
+	URL string `json:"url"`
+}
+
+// ExtractContentResponse представляет ответ с извлеченным контентом
+type ExtractContentResponse struct {
+	URL     string `json:"url"`
+	Content string `json:"content"`
+	Length  int    `json:"length"`
+}
+
+// ExtractContent извлекает контент с веб-страницы
+func (h *Handler) ExtractContent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ExtractContentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.WithError(err).Error("Failed to decode request")
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" {
+		http.Error(w, "URL is required", http.StatusBadRequest)
+		return
+	}
+
+	// Извлекаем контент
+	content, err := h.parsingService.ExtractContent(r.Context(), req.URL)
+	if err != nil {
+		h.logger.WithError(err).WithField("url", req.URL).Error("Failed to extract content")
+		response := Response{
+			Success: false,
+			Error:   err.Error(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := Response{
+		Success: true,
+		Data: ExtractContentResponse{
+			URL:     req.URL,
+			Content: content,
+			Length:  len(content),
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // SetupRoutes настраивает маршруты HTTP сервера
 func (h *Handler) SetupRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
-	
+
 	// Health check
 	mux.HandleFunc("/health", h.loggingMiddleware(h.corsMiddleware(h.HealthCheck)))
-	
+
 	// API endpoints
 	mux.HandleFunc("/api/stats", h.loggingMiddleware(h.corsMiddleware(h.GetStats)))
 	mux.HandleFunc("/api/status", h.loggingMiddleware(h.corsMiddleware(h.GetStatus)))
@@ -312,7 +369,8 @@ func (h *Handler) SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/parse/source", h.loggingMiddleware(h.corsMiddleware(h.ParseSource)))
 	mux.HandleFunc("/api/validate", h.loggingMiddleware(h.corsMiddleware(h.ValidateSource)))
 	mux.HandleFunc("/api/feed-info", h.loggingMiddleware(h.corsMiddleware(h.GetFeedInfo)))
-	
+	mux.HandleFunc("/api/extract-content", h.loggingMiddleware(h.corsMiddleware(h.ExtractContent)))
+
 	return mux
 }
 

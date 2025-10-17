@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>News Pulse - Диагностика</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>News Pulse - Диагностика подключения</h1>
+    
+    <div id="status">
+        <h2>Статус подключения:</h2>
+        <p id="frontend-status">Frontend: Загружается...</p>
+        <p id="api-status">API: Проверяется...</p>
+        <p id="cors-status">CORS: Проверяется...</p>
+    </div>
+    
+    <div id="test-results">
+        <h2>Результаты тестов:</h2>
+        <div id="api-test"></div>
+        <div id="cors-test"></div>
+    </div>
+    
+    <script>
+        // Проверяем загрузку frontend
+        document.getElementById('frontend-status').textContent = 'Frontend: ✅ Загружен';
+        
+        // Тестируем API
+        fetch('/api/categories')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('api-status').textContent = 'API: ✅ Работает';
+                    return response.json();
+                } else {
+                    throw new Error('API не отвечает: ' + response.status);
+                }
+            })
+            .then(data => {
+                document.getElementById('api-test').innerHTML = 
+                    '<h3>API Categories:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            })
+            .catch(error => {
+                document.getElementById('api-status').textContent = 'API: ❌ Ошибка - ' + error.message;
+                document.getElementById('api-test').innerHTML = 
+                    '<h3>Ошибка API:</h3><p>' + error.message + '</p>';
+            });
+        
+        // Тестируем CORS
+        fetch('http://94.198.51.31:8080/api/categories', {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                document.getElementById('cors-status').textContent = 'CORS: ✅ Работает';
+                return response.json();
+            } else {
+                throw new Error('CORS не работает: ' + response.status);
+            }
+        })
+        .then(data => {
+            document.getElementById('cors-test').innerHTML = 
+                '<h3>CORS Test:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        })
+        .catch(error => {
+            document.getElementById('cors-status').textContent = 'CORS: ❌ Ошибка - ' + error.message;
+            document.getElementById('cors-test').innerHTML = 
+                '<h3>Ошибка CORS:</h3><p>' + error.message + '</p>';
+        });
+        
+        // Информация о браузере
+        document.getElementById('test-results').innerHTML += 
+            '<h3>Информация о браузере:</h3>' +
+            '<p>User Agent: ' + navigator.userAgent + '</p>' +
+            '<p>URL: ' + window.location.href + '</p>' +
+            '<p>Protocol: ' + window.location.protocol + '</p>' +
+            '<p>Host: ' + window.location.host + '</p>';
+    </script>
+</body>
+</html>
