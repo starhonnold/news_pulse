@@ -352,16 +352,26 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 		// ТЕПЕРЬ классифицируем с полным контекстом
 		var categoryID *int
 
-		// 1) Пробуем FastText ТОЛЬКО если есть контент (минимум 300 символов для точной классификации)
-		if s.fastTextClient != nil && s.fastTextClient.IsEnabled() && len(fullContent) >= 300 {
+		// 1) Пробуем FastText - всегда если включен (работает даже на коротких текстах)
+		if s.fastTextClient != nil && s.fastTextClient.IsEnabled() {
+			// Объединяем заголовок + описание + контент для лучшей классификации
+			textForClassification := item.Title
+			if item.Description != "" {
+				textForClassification += ". " + item.Description
+			}
+			if fullContent != "" && fullContent != item.Description {
+				textForClassification += ". " + fullContent
+			}
+
 			s.logger.WithFields(logrus.Fields{
 				"title":          truncateForLog(item.Title, 50),
 				"content_length": len(fullContent),
-			}).Debug("Classifying with FastText (with content)")
+				"total_length":   len(textForClassification),
+			}).Debug("Classifying with FastText")
 
-			resp, err := s.fastTextClient.Classify(ctx, item.Title, fullContent)
+			resp, err := s.fastTextClient.Classify(ctx, item.Title, textForClassification)
 
-			if err == nil && resp.CategoryID > 0 {
+			if err == nil && resp.CategoryID > 0 && resp.Confidence >= 0.15 {
 				categoryID = &resp.CategoryID
 				s.logger.WithFields(logrus.Fields{
 					"title":             truncateForLog(item.Title, 50),
@@ -370,18 +380,19 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 					"confidence":        resp.Confidence,
 					"original_category": resp.OriginalCategory,
 					"content_length":    len(fullContent),
+					"total_length":      len(textForClassification),
 				}).Info("✅ News classified with FastText")
 			} else if err != nil {
 				s.logger.WithFields(logrus.Fields{
 					"title": truncateForLog(item.Title, 50),
 					"error": err,
-				}).Warn("FastText classification failed")
+				}).Warn("FastText classification failed, using fallback")
+			} else if resp.Confidence < 0.15 {
+				s.logger.WithFields(logrus.Fields{
+					"title":      truncateForLog(item.Title, 50),
+					"confidence": resp.Confidence,
+				}).Debug("FastText confidence too low, using fallback")
 			}
-		} else if s.fastTextClient != nil && s.fastTextClient.IsEnabled() && len(fullContent) < 300 {
-			s.logger.WithFields(logrus.Fields{
-				"title":          truncateForLog(item.Title, 50),
-				"content_length": len(fullContent),
-			}).Debug("Skipping FastText (content too short < 300), using WeightedClassifier")
 		}
 
 		// 2) Fallback: WeightedClassifier
