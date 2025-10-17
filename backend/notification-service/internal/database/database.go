@@ -86,15 +86,15 @@ func (d *Database) createTables() error {
 			is_read BOOLEAN DEFAULT FALSE,
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 			read_at TIMESTAMP WITH TIME ZONE,
-			expires_at TIMESTAMP WITH TIME ZONE,
-			
-			-- Индексы
-			INDEX idx_notifications_user_id (user_id),
-			INDEX idx_notifications_type (type),
-			INDEX idx_notifications_is_read (is_read),
-			INDEX idx_notifications_created_at (created_at),
-			INDEX idx_notifications_expires_at (expires_at)
+			expires_at TIMESTAMP WITH TIME ZONE
 		)`,
+		
+		// Создание индексов для таблицы notifications
+		`CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications (type)`,
+		`CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications (is_read)`,
+		`CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications (created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_notifications_expires_at ON notifications (expires_at)`,
 		
 		// Таблица настроек уведомлений пользователей
 		`CREATE TABLE IF NOT EXISTS user_notification_settings (

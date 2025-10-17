@@ -3,11 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/mmcdole/gofeed"
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 
@@ -30,8 +28,8 @@ type ParsingService struct {
 	semaphore            chan struct{}
 	countryDetector      *CountryDetector
 	contentExtractor     *ContentExtractor
-	simpleNewsClassifier *SimpleNewsClassifier
-	aiClassifier         *AIClassifier
+	simpleNewsClassifier *WeightedNewsClassifier
+	fastTextClient       *FastTextClassifierClient // Основной FastText классификатор
 }
 
 // NewParsingService создает новый сервис парсинга
@@ -60,26 +58,53 @@ func NewParsingService(
 		return nil
 	}
 
-	// Создаем классификатор новостей
-	simpleNewsClassifier := NewSimpleNewsClassifier(logger)
+	// Создаем классификатор новостей с щадящими параметрами
+	simpleNewsClassifier, err := NewWeightedNewsClassifier(logger, WeightedClassifierConfig{
+		TitleWeight:   1.6,
+		SummaryWeight: 1.0,
+		ContentWeight: 1.0,
+		MinConfidence: 0.18, // Снижаем порог уверенности
+		MinMargin:     0.03, // Снижаем минимальный отрыв
+		UseStemming:   true,
+		URLPriorBoost: 0.30, // Приор по URL
+		BatchTimeout:  30 * time.Second,
 
-	// Создаем AI классификатор
-	ollamaURL := "http://ollama:11434"
-	model := "hf.co/Vikhrmodels/Vikhr-Llama-3.2-1B-instruct-GGUF:Q4_K_M"
-	timeout := 60 * time.Second
-
-	if fullConfig != nil {
-		if fullConfig.AI.OllamaURL != "" {
-			ollamaURL = fullConfig.AI.OllamaURL
-		}
-		if fullConfig.AI.Model != "" {
-			model = fullConfig.AI.Model
-		}
-		if fullConfig.AI.Timeout > 0 {
-			timeout = fullConfig.AI.Timeout
-		}
+		// Щадящая классификация
+		AllowUnknown:        true,
+		MinScoreForFallback: 0.30,
+		FallbackCategory:    CatSociety,
+	})
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create news classifier")
 	}
-	aiClassifier := NewAIClassifier(ollamaURL, model, timeout, fullConfig.AI.Temperature, logger)
+
+	// Создаем FastText клиент (NEW - основной классификатор)
+	var fastTextClient *FastTextClassifierClient
+	if fullConfig != nil && fullConfig.FastText.Enabled {
+		serviceURL := fullConfig.FastText.ServiceURL
+		timeout := fullConfig.FastText.Timeout
+		if timeout == 0 {
+			timeout = 30 * time.Second
+		}
+
+		fastTextClient = NewFastTextClassifierClient(serviceURL, timeout, logger, true)
+
+		// Проверяем доступность сервиса
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := fastTextClient.HealthCheck(ctx); err != nil {
+			logger.WithError(err).Warn("FastText service unavailable, will use fallback classifier")
+			fastTextClient.SetEnabled(false)
+		} else {
+			logger.WithFields(logrus.Fields{
+				"url":     serviceURL,
+				"timeout": timeout,
+			}).Info("✅ FastText classifier initialized and available")
+		}
+	} else {
+		logger.Info("FastText classifier is disabled in config")
+	}
 
 	return &ParsingService{
 		rssParser:            rssParser,
@@ -93,12 +118,12 @@ func NewParsingService(
 		countryDetector:      countryDetector,
 		contentExtractor:     contentExtractor,
 		simpleNewsClassifier: simpleNewsClassifier,
-		aiClassifier:         aiClassifier,
+		fastTextClient:       fastTextClient,
 	}
 }
 
 // Start запускает сервис парсинга
-func (s *ParsingService) Start(ctx context.Context) error {
+func (s *ParsingService) Start() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -106,32 +131,19 @@ func (s *ParsingService) Start(ctx context.Context) error {
 		return fmt.Errorf("parsing service is already running")
 	}
 
-	s.logger.Info("Starting parsing service")
-
-	// Добавляем задачу в cron
-	cronExpr := fmt.Sprintf("@every %s", s.config.Interval.String())
-	_, err := s.cron.AddFunc(cronExpr, func() {
-		if err := s.ParseAllSources(ctx); err != nil {
-			s.logger.WithError(err).Error("Failed to parse all sources")
-		}
-	})
-
+	// Запускаем cron задачу для парсинга
+	_, err := s.cron.AddFunc("@every 10m", s.ParseAllSources)
 	if err != nil {
 		return fmt.Errorf("failed to add cron job: %w", err)
 	}
 
-	// Запускаем cron
 	s.cron.Start()
 	s.isRunning = true
 
-	s.logger.WithField("interval", s.config.Interval).Info("Parsing service started")
+	s.logger.Info("Parsing service started")
 
-	// Запускаем первый парсинг
-	go func() {
-		if err := s.ParseAllSources(ctx); err != nil {
-			s.logger.WithError(err).Error("Failed initial parsing")
-		}
-	}()
+	// Запускаем немедленный парсинг
+	go s.ParseAllSources()
 
 	return nil
 }
@@ -142,12 +154,9 @@ func (s *ParsingService) Stop() error {
 	defer s.mu.Unlock()
 
 	if !s.isRunning {
-		return nil
+		return fmt.Errorf("parsing service is not running")
 	}
 
-	s.logger.Info("Stopping parsing service")
-
-	// Останавливаем cron
 	s.cron.Stop()
 	s.isRunning = false
 
@@ -155,121 +164,149 @@ func (s *ParsingService) Stop() error {
 	return nil
 }
 
-// ParseAllSources парсит все активные источники
-func (s *ParsingService) ParseAllSources(ctx context.Context) error {
+// IsRunning возвращает статус работы сервиса
+func (s *ParsingService) IsRunning() bool {
+	return s.isRunning
+}
+
+// GetStats возвращает статистику парсинга
+func (s *ParsingService) GetStats() map[string]interface{} {
+	return map[string]interface{}{
+		"is_running": s.isRunning,
+	}
+}
+
+// ValidateSource валидирует источник новостей
+func (s *ParsingService) ValidateSource(source models.NewsSource) error {
+	// Простая валидация
+	if source.RSSURL == "" {
+		return fmt.Errorf("RSS URL is required")
+	}
+	return nil
+}
+
+// GetFeedInfo получает информацию о фиде
+func (s *ParsingService) GetFeedInfo(ctx context.Context, url string) (map[string]interface{}, error) {
+	// Заглушка
+	return map[string]interface{}{
+		"url":         url,
+		"title":       "Feed Title",
+		"description": "Feed Description",
+	}, nil
+}
+
+// ExtractContent извлекает контент из статьи
+func (s *ParsingService) ExtractContent(ctx context.Context, url string) (string, error) {
+	// Заглушка
+	return "Extracted content", nil
+}
+
+// ParseAllSources парсит все источники новостей
+func (s *ParsingService) ParseAllSources() {
 	s.logger.Info("Starting to parse all sources")
 
-	// Получаем источники, которые нужно парсить
-	sources, err := s.newsSourceRepo.GetSourcesToParse(ctx)
+	sources, err := s.newsSourceRepo.GetActive(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to get sources to parse: %w", err)
+		s.logger.WithError(err).Error("Failed to get active sources")
+		return
 	}
 
 	if len(sources) == 0 {
-		s.logger.Debug("No sources to parse")
-		return nil
+		s.logger.Warn("No active sources found")
+		return
 	}
 
 	s.logger.WithField("sources_count", len(sources)).Info("Found sources to parse")
 
-	// Парсим источники параллельно
+	// Парсим источники параллельно с ограничением
 	var wg sync.WaitGroup
 	for _, source := range sources {
 		wg.Add(1)
 		go func(src models.NewsSource) {
 			defer wg.Done()
-			s.parseSource(ctx, src)
+			s.ParseSource(context.Background(), src)
 		}(source)
 	}
 
-	// Ждем завершения всех горутин
 	wg.Wait()
-
 	s.logger.Info("Finished parsing all sources")
-	return nil
 }
 
-// parseSource парсит один источник
-func (s *ParsingService) parseSource(ctx context.Context, source models.NewsSource) {
-	// Ограничиваем количество одновременных парсингов
+// ParseSource парсит один источник новостей
+func (s *ParsingService) ParseSource(ctx context.Context, source models.NewsSource) {
+	// Получаем семафор
 	s.semaphore <- struct{}{}
 	defer func() { <-s.semaphore }()
 
-	logger := s.logger.WithFields(logrus.Fields{
-		"source_id":   source.ID,
-		"source_name": source.Name,
-		"rss_url":     source.RSSURL,
-	})
-
-	logger.Debug("Starting to parse source")
-
-	// Создаем контекст с таймаутом
-	parseCtx, cancel := context.WithTimeout(ctx, s.config.RequestTimeout*2)
-	defer cancel()
+	startTime := time.Now()
+	s.logger.WithField("source", source.Name).Info("Starting to parse source")
 
 	// Парсим RSS ленту
-	result := s.rssParser.ParseFeed(parseCtx, source)
-
-	// Логируем результат парсинга
-	if err := s.parsingLogRepo.LogParsingResult(ctx, result); err != nil {
-		logger.WithError(err).Error("Failed to log parsing result")
-	}
-
+	result := s.rssParser.ParseFeed(ctx, source)
 	if !result.Success {
-		logger.WithError(fmt.Errorf("RSS parsing failed: %s", result.Error)).Error("Failed to parse RSS feed")
+		s.logger.WithFields(logrus.Fields{
+			"source":  source.Name,
+			"rss_url": source.RSSURL,
+			"error":   result.Error,
+		}).Error("Failed to parse RSS feed")
+		return
+	}
+	items := result.Items
+
+	if len(items) == 0 {
+		s.logger.WithField("source", source.Name).Warn("No items found in RSS feed")
 		return
 	}
 
-	if len(result.Items) == 0 {
-		logger.Debug("No new items found in RSS feed")
-		// Обновляем время последнего парсинга даже если новостей нет
-		if err := s.newsSourceRepo.UpdateLastParsedAt(ctx, source.ID, result.ParsedAt); err != nil {
-			logger.WithError(err).Error("Failed to update last parsed time")
-		}
-		return
-	}
-
-	// Обрабатываем и сохраняем новости
-	newsList, err := s.processItems(ctx, result.Items, source)
+	// Обрабатываем элементы
+	newsList, err := s.processItems(ctx, items, source)
 	if err != nil {
-		logger.WithError(err).Error("Failed to process items")
-		return
-	}
-
-	if len(newsList) == 0 {
-		logger.Debug("No new news to save after processing")
-		// Обновляем время последнего парсинга
-		if err := s.newsSourceRepo.UpdateLastParsedAt(ctx, source.ID, result.ParsedAt); err != nil {
-			logger.WithError(err).Error("Failed to update last parsed time")
-		}
+		s.logger.WithFields(logrus.Fields{
+			"source": source.Name,
+			"error":  err,
+		}).Error("Failed to process items")
 		return
 	}
 
 	// Сохраняем новости в базу данных
-	if err := s.newsRepo.CreateBatch(ctx, newsList); err != nil {
-		logger.WithError(err).Error("Failed to save news batch")
-		return
+	createdCount := 0
+	for _, news := range newsList {
+		if err := s.newsRepo.Create(ctx, &news); err != nil {
+			s.logger.WithFields(logrus.Fields{
+				"source": source.Name,
+				"title":  truncateForLog(news.Title, 50),
+				"error":  err,
+			}).Error("Failed to create news")
+			continue
+		}
+		createdCount++
 	}
 
-	// Обновляем время последнего парсинга
-	if err := s.newsSourceRepo.UpdateLastParsedAt(ctx, source.ID, result.ParsedAt); err != nil {
-		logger.WithError(err).Error("Failed to update last parsed time")
+	// Логируем результат парсинга
+	parsingLog := models.ParsingLog{
+		SourceID:        source.ID,
+		Status:          "success",
+		NewsCount:       createdCount,
+		ExecutionTimeMs: int(time.Since(startTime).Milliseconds()),
 	}
 
-	logger.WithFields(logrus.Fields{
-		"items_parsed": len(result.Items),
-		"news_saved":   len(newsList),
-		"parse_time":   result.ExecutionTime,
+	if err := s.parsingLogRepo.Create(ctx, &parsingLog); err != nil {
+		s.logger.WithError(err).Warn("Failed to create parsing log")
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"source":        source.Name,
+		"items_found":   len(items),
+		"items_created": parsingLog.NewsCount,
+		"parse_time":    time.Since(startTime),
 	}).Info("Successfully parsed source")
 }
 
 // processItems обрабатывает элементы из RSS ленты и конвертирует их в новости
 func (s *ParsingService) processItems(ctx context.Context, items []models.ParsedFeedItem, source models.NewsSource) ([]models.News, error) {
 	var newsList []models.News
-	var itemsForClassification []UnifiedNewsItem
-	var validItems []models.ParsedFeedItem
 
-	// Сначала фильтруем элементы и собираем те, которые нуждаются в обработке
+	// Обрабатываем каждую новость по отдельности
 	for _, item := range items {
 		// Проверяем, существует ли уже такая новость
 		if s.config.EnableDeduplication {
@@ -283,132 +320,7 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Добавляем элемент в список валидных
-		validItems = append(validItems, item)
-
-		// Собираем элементы для классификации
-		itemsForClassification = append(itemsForClassification, UnifiedNewsItem{
-			Index:       len(validItems) - 1,
-			Title:       item.Title,
-			Description: item.Description,
-			Content:     item.Content,
-			URL:         item.Link,
-			Categories:  item.Categories,
-		})
-	}
-
-	// Выполняем классификацию новостей с повторными попытками
-	classificationResults := make(map[int]UnifiedProcessingResult)
-	if len(itemsForClassification) > 0 {
-		s.logger.WithField("items_count", len(itemsForClassification)).Info("Performing news classification")
-
-		// Сначала пробуем AI классификатор
-		var results []UnifiedProcessingResult
-		var err error
-
-		if s.aiClassifier != nil {
-			s.logger.Info("Using AI classifier (Ollama)")
-			results, err = s.aiClassifier.ProcessNewsBatch(ctx, itemsForClassification)
-			if err != nil {
-				s.logger.WithError(err).Warn("AI classification failed, trying simple classifier")
-				// Если AI не работает, пробуем простой классификатор
-				if s.simpleNewsClassifier != nil {
-					results, err = s.simpleNewsClassifier.ProcessNewsBatch(ctx, itemsForClassification)
-				}
-			} else {
-				// Проверяем результаты AI классификации
-				var retryItems []UnifiedNewsItem
-				for i, result := range results {
-					if result.Error != nil || result.CategoryID == 0 {
-						s.logger.WithFields(logrus.Fields{
-							"index": result.Index,
-							"title": truncateForLog(result.Title, 50),
-							"error": result.Error,
-						}).Warn("AI classification failed for item, will retry with simple classifier")
-						retryItems = append(retryItems, itemsForClassification[i])
-					} else {
-						classificationResults[result.Index] = result
-						s.logger.WithFields(logrus.Fields{
-							"index":       result.Index,
-							"title":       truncateForLog(result.Title, 50),
-							"category_id": result.CategoryID,
-							"confidence":  result.Confidence,
-						}).Info("News classified with AI")
-					}
-				}
-
-				// Если есть элементы для повторной попытки, пробуем простой классификатор
-				if len(retryItems) > 0 && s.simpleNewsClassifier != nil {
-					s.logger.WithField("retry_count", len(retryItems)).Info("Retrying failed items with simple classifier")
-					retryResults, retryErr := s.simpleNewsClassifier.ProcessNewsBatch(ctx, retryItems)
-					if retryErr != nil {
-						s.logger.WithError(retryErr).Warn("Simple classifier retry also failed")
-					} else {
-						// Добавляем успешные результаты повторной попытки
-						for _, result := range retryResults {
-							if result.Error == nil && result.CategoryID > 0 {
-								classificationResults[result.Index] = result
-								s.logger.WithFields(logrus.Fields{
-									"index":       result.Index,
-									"title":       truncateForLog(result.Title, 50),
-									"category_id": result.CategoryID,
-									"confidence":  result.Confidence,
-								}).Info("News classified with simple classifier retry")
-							} else {
-								s.logger.WithFields(logrus.Fields{
-									"index": result.Index,
-									"title": truncateForLog(result.Title, 50),
-									"error": result.Error,
-								}).Warn("Simple classifier retry also failed for item")
-							}
-						}
-					}
-				}
-			}
-		} else if s.simpleNewsClassifier != nil {
-			s.logger.Info("Using simple classifier")
-			results, err = s.simpleNewsClassifier.ProcessNewsBatch(ctx, itemsForClassification)
-			if err != nil {
-				s.logger.WithError(err).Warn("Simple classification failed")
-			} else {
-				// Проверяем результаты простой классификации
-				for _, result := range results {
-					if result.Error == nil && result.CategoryID > 0 {
-						classificationResults[result.Index] = result
-						s.logger.WithFields(logrus.Fields{
-							"index":       result.Index,
-							"title":       truncateForLog(result.Title, 50),
-							"category_id": result.CategoryID,
-							"confidence":  result.Confidence,
-						}).Info("News classified with simple classifier")
-					} else {
-						s.logger.WithFields(logrus.Fields{
-							"index": result.Index,
-							"title": truncateForLog(result.Title, 50),
-							"error": result.Error,
-						}).Warn("Simple classification failed for item")
-					}
-				}
-			}
-		}
-	}
-
-	// Теперь создаем новости только с успешно определенными категориями
-	for i, item := range validItems {
-		// Проверяем, есть ли результат классификации для этого элемента
-		result, exists := classificationResults[i]
-		if !exists || result.CategoryID == 0 {
-			s.logger.WithFields(logrus.Fields{
-				"index": i,
-				"title": truncateForLog(item.Title, 50),
-				"url":   item.Link,
-			}).Warn("Skipping news item - no valid category determined")
-			continue
-		}
-
-		categoryID := &result.CategoryID
-
-		// Извлекаем полный контент
+		// СНАЧАЛА извлекаем полный контент
 		var fullContent string
 		var contentSource string
 
@@ -431,23 +343,78 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			}
 		}
 
-		// Если извлечение с веб-страницы не удалось, используем описание из RSS
+		// Если не удалось извлечь контент, используем то, что пришло из RSS
 		if fullContent == "" {
 			fullContent = item.Description
 			contentSource = "rss_description"
 		}
 
-		// Если и описания нет, используем контент из RSS
-		if fullContent == "" {
-			if item.Content != "" {
-				fullContent = item.Content
-			} else {
-				fullContent = item.Description
+		// ТЕПЕРЬ классифицируем с полным контекстом
+		var categoryID *int
+
+		// 1) Пробуем FastText ТОЛЬКО если есть контент (минимум 300 символов для точной классификации)
+		if s.fastTextClient != nil && s.fastTextClient.IsEnabled() && len(fullContent) >= 300 {
+			s.logger.WithFields(logrus.Fields{
+				"title":          truncateForLog(item.Title, 50),
+				"content_length": len(fullContent),
+			}).Debug("Classifying with FastText (with content)")
+
+			resp, err := s.fastTextClient.Classify(ctx, item.Title, fullContent)
+
+			if err == nil && resp.CategoryID > 0 {
+				categoryID = &resp.CategoryID
+				s.logger.WithFields(logrus.Fields{
+					"title":             truncateForLog(item.Title, 50),
+					"category_id":       resp.CategoryID,
+					"category_name":     resp.CategoryName,
+					"confidence":        resp.Confidence,
+					"original_category": resp.OriginalCategory,
+					"content_length":    len(fullContent),
+				}).Info("✅ News classified with FastText")
+			} else if err != nil {
+				s.logger.WithFields(logrus.Fields{
+					"title": truncateForLog(item.Title, 50),
+					"error": err,
+				}).Warn("FastText classification failed")
 			}
-			contentSource = "rss_content"
+		} else if s.fastTextClient != nil && s.fastTextClient.IsEnabled() && len(fullContent) < 300 {
+			s.logger.WithFields(logrus.Fields{
+				"title":          truncateForLog(item.Title, 50),
+				"content_length": len(fullContent),
+			}).Debug("Skipping FastText (content too short < 300), using WeightedClassifier")
 		}
 
-		// Определяем страну по контенту
+		// 2) Fallback: WeightedClassifier
+		if categoryID == nil && s.simpleNewsClassifier != nil {
+			result := s.simpleNewsClassifier.classify(UnifiedNewsItem{
+				Title:       item.Title,
+				Description: item.Description,
+				Content:     fullContent,
+				URL:         item.Link,
+				Categories:  item.Categories,
+			}, 0)
+
+			if result.CategoryID > 0 {
+				categoryID = &result.CategoryID
+				s.logger.WithFields(logrus.Fields{
+					"title":       truncateForLog(item.Title, 50),
+					"category_id": result.CategoryID,
+					"confidence":  result.Confidence,
+				}).Info("✅ News classified with WeightedClassifier")
+			}
+		}
+
+		// 3) Final fallback
+		if categoryID == nil {
+			fallbackCategory := CatSociety // 5 — Общество
+			categoryID = &fallbackCategory
+			s.logger.WithFields(logrus.Fields{
+				"title":       truncateForLog(item.Title, 50),
+				"fallback_id": fallbackCategory,
+			}).Warn("⚠️ Using fallback category (Общество)")
+		}
+
+		// Детектируем страну
 		var detectedCountry *string
 		if fullContent != "" {
 			detectedCountry = s.countryDetector.DetectCountry(item.Title, item.Description, fullContent)
@@ -456,11 +423,11 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 		// Создаем объект новости
 		news := models.News{
 			Title:          item.Title,
-			Description:    item.Description,
-			Content:        fullContent,
+			Description:    s.ensureString(item.Description),
+			Content:        s.ensureString(fullContent),
 			URL:            item.Link,
-			ImageURL:       item.ImageURL,
-			Author:         item.Author,
+			ImageURL:       s.ensureString(item.ImageURL),
+			Author:         s.ensureString(item.Author),
 			SourceID:       source.ID,
 			CategoryID:     categoryID,
 			PublishedAt:    item.Published,
@@ -488,175 +455,47 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			continue
 		}
 
+		// Добавляем в список
 		newsList = append(newsList, news)
 	}
 
 	return newsList, nil
 }
 
-// calculateRelevanceScore вычисляет оценку релевантности новости
+// calculateRelevanceScore вычисляет релевантность новости
 func (s *ParsingService) calculateRelevanceScore(item models.ParsedFeedItem) float64 {
-	score := 0.5 // Базовая оценка
+	score := 0.5 // Базовый балл
 
-	// Учитываем актуальность (свежесть)
-	age := time.Since(item.Published)
-	if age < time.Hour {
-		score += 0.3 // Очень свежие новости
-	} else if age < 6*time.Hour {
-		score += 0.2 // Свежие новости
-	} else if age < 24*time.Hour {
-		score += 0.1 // Новости за день
-	}
-
-	// Учитываем длину заголовка (оптимальная длина 50-100 символов)
-	titleLen := len(item.Title)
-	if titleLen >= 50 && titleLen <= 100 {
+	// Увеличиваем балл за наличие изображения
+	if item.ImageURL != "" {
 		score += 0.1
 	}
 
-	// Учитываем наличие описания
-	if len(item.Description) > 100 {
-		score += 0.05
+	// Увеличиваем балл за длину контента
+	if len(item.Content) > 100 {
+		score += 0.1
+	}
+	if len(item.Content) > 500 {
+		score += 0.1
 	}
 
-	// Учитываем наличие изображения
-	if item.ImageURL != "" {
-		score += 0.05
-	}
-
-	// Учитываем наличие автора
+	// Увеличиваем балл за наличие автора
 	if item.Author != "" {
-		score += 0.05
+		score += 0.1
 	}
 
-	// Ограничиваем оценку диапазоном [0.0, 1.0]
+	// Ограничиваем балл до 1.0
 	if score > 1.0 {
 		score = 1.0
-	}
-	if score < 0.0 {
-		score = 0.0
 	}
 
 	return score
 }
 
-// ParseSource парсит конкретный источник (для API)
-func (s *ParsingService) ParseSource(ctx context.Context, sourceID int) error {
-	source, err := s.newsSourceRepo.GetByID(ctx, sourceID)
-	if err != nil {
-		return fmt.Errorf("failed to get source: %w", err)
-	}
-
-	if !source.IsActive {
-		return fmt.Errorf("source %d is not active", sourceID)
-	}
-
-	s.parseSource(ctx, *source)
-	return nil
-}
-
-// GetStats возвращает статистику парсинга
-func (s *ParsingService) GetStats(ctx context.Context) (*models.ParsingStats, error) {
-	// Получаем статистику за последние 24 часа
-	since := time.Now().Add(-24 * time.Hour)
-
-	// Статистика из логов парсинга
-	parsingStats, err := s.parsingLogRepo.GetStats(ctx, since)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get parsing stats: %w", err)
-	}
-
-	// Статистика источников
-	sourceStats, err := s.newsSourceRepo.GetStats(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get source stats: %w", err)
-	}
-
-	// Статистика новостей
-	newsStats, err := s.newsRepo.GetNewsStats(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get news stats: %w", err)
-	}
-
-	// Объединяем статистики
-	stats := &models.ParsingStats{
-		TotalSources:   sourceStats.TotalSources,
-		ActiveSources:  sourceStats.ActiveSources,
-		SuccessfulRuns: parsingStats.SuccessfulRuns,
-		FailedRuns:     parsingStats.FailedRuns,
-		TotalNews:      newsStats.TotalNews,
-		NewsToday:      newsStats.NewsToday,
-		AvgParseTime:   parsingStats.AvgParseTime,
-		LastParseTime:  parsingStats.LastParseTime,
-	}
-
-	return stats, nil
-}
-
-// IsRunning возвращает статус работы сервиса
-func (s *ParsingService) IsRunning() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.isRunning
-}
-
-// ValidateSource проверяет корректность источника RSS
-func (s *ParsingService) ValidateSource(ctx context.Context, rssURL string) error {
-	return s.rssParser.ValidateFeed(ctx, rssURL)
-}
-
-// GetFeedInfo возвращает информацию о RSS ленте
-func (s *ParsingService) GetFeedInfo(ctx context.Context, rssURL string) (*models.NewsSource, error) {
-	feed, err := s.rssParser.GetFeedInfo(ctx, rssURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get feed info: %w", err)
-	}
-
-	// Создаем объект источника на основе информации из RSS
-	source := &models.NewsSource{
-		Name:                 feed.Title,
-		Domain:               extractDomainFromURL(rssURL),
-		RSSURL:               rssURL,
-		WebsiteURL:           feed.Link,
-		Language:             "ru", // По умолчанию русский
-		Description:          feed.Description,
-		LogoURL:              extractImageFromFeed(feed),
-		IsActive:             true,
-		ParseIntervalMinutes: 10, // По умолчанию 10 минут
-	}
-
-	return source, nil
-}
-
-// extractDomainFromURL извлекает домен из URL
-func extractDomainFromURL(url string) string {
-	if strings.HasPrefix(url, "http://") {
-		url = url[7:]
-	} else if strings.HasPrefix(url, "https://") {
-		url = url[8:]
-	}
-
-	if idx := strings.Index(url, "/"); idx != -1 {
-		url = url[:idx]
-	}
-
-	return url
-}
-
-// extractImageFromFeed извлекает URL изображения из RSS ленты
-func extractImageFromFeed(feed *gofeed.Feed) string {
-	if feed.Image != nil && feed.Image.URL != "" {
-		return feed.Image.URL
-	}
-
-	// Можно добавить логику для извлечения favicon
-	return ""
-}
-
-// ExtractContent извлекает контент с веб-страницы
-func (s *ParsingService) ExtractContent(url string) (string, error) {
+// extractFullContent извлекает полный контент с веб-страницы
+func (s *ParsingService) extractFullContent(ctx context.Context, url string) (string, error) {
 	if s.contentExtractor == nil {
-		return "", fmt.Errorf("content extractor not initialized")
+		return "", fmt.Errorf("content extractor not available")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -668,4 +507,20 @@ func (s *ParsingService) ExtractContent(url string) (string, error) {
 	}
 
 	return content, nil
+}
+
+// ensureString гарантирует, что строка не пустая (заменяет пустую строку на пустую строку)
+func (s *ParsingService) ensureString(str string) string {
+	if str == "" {
+		return ""
+	}
+	return str
+}
+
+// truncateForLog обрезает строку для логирования
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }

@@ -173,33 +173,35 @@
       <!-- Страница конкретного пульса с новостями -->
       <div v-else>
         <!-- Хедер пульса -->
-        <div class="row items-center q-mb-md">
+        <div class="row items-center q-mb-md mobile-pulse-header">
           <div class="col-auto">
             <q-btn
               flat
               round
               icon="arrow_back"
               @click="selectedPulse = null"
-              class="q-mr-md"
+              class="q-mr-sm mobile-back-btn"
+              size="md"
             />
           </div>
-          <div class="col">
-            <div class="text-h5 text-weight-bold text-primary">
+          <div class="col mobile-pulse-title-wrapper">
+            <div class="text-h5 text-weight-bold text-primary mobile-pulse-title">
               {{ selectedPulse.name }}
             </div>
-            <div class="text-subtitle2 text-grey-7">
+            <div class="text-subtitle2 text-grey-7 mobile-pulse-desc">
               {{ selectedPulse.description }}
             </div>
           </div>
-          <div class="col-auto">
+          <div class="col-12 col-sm-auto q-mt-sm q-mt-sm-none mobile-refresh-btn-wrapper">
             <q-btn
               :loading="isUpdating"
               color="primary"
               icon="refresh"
-              label="Обновить"
-              class="modern-btn gradient-btn"
+              :label="$q.screen.gt.xs ? 'Обновить' : ''"
+              class="modern-btn gradient-btn mobile-refresh-btn"
               unelevated
               @click="updatePulseNews"
+              size="md"
             />
           </div>
         </div>
@@ -228,6 +230,19 @@
           />
         </q-card>
 
+        <!-- Индикатор загрузки новостей -->
+        <div v-if="isLoadingNews" class="row justify-center q-my-lg">
+          <q-card class="loading-card glass-effect">
+            <q-card-section class="text-center">
+              <q-spinner-dots color="primary" size="40px" />
+              <div class="text-h6 q-mt-md text-primary">{{ loadingMessage }}</div>
+              <div v-if="retryCount > 0" class="text-caption text-grey-6 q-mt-sm">
+                Попытка {{ retryCount }}/{{ maxRetries }}
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
         <!-- Новости пульса -->
         <div class="row">
           <div class="col-12">
@@ -239,26 +254,24 @@
                   class="news-card q-mb-md cursor-pointer fade-in-up"
                   @click="openNews(news)"
                 >
-                  <div class="row no-wrap">
-                    <!-- Изображение новости -->
-                    <div v-if="news.image_url || news.image" class="col-auto">
-                      <q-img
-                        :src="news.image_url || news.image"
-                        style="width: 120px; height: 120px"
-                        class="rounded-borders news-image"
-                        fit="cover"
-                      >
-                        <template v-slot:error>
-                          <div class="absolute-full flex flex-center bg-grey-3">
-                            <q-icon name="image" size="lg" color="grey-6" />
-                          </div>
-                        </template>
-                      </q-img>
-                    </div>
+                  <!-- Изображение новости -->
+                  <div v-if="news.image_url || news.image" class="news-image-wrapper">
+                    <q-img
+                      :src="news.image_url || news.image"
+                      :ratio="16/9"
+                      class="news-image"
+                      fit="cover"
+                    >
+                      <template v-slot:error>
+                        <div class="absolute-full flex flex-center bg-grey-3">
+                          <q-icon name="image" size="lg" color="grey-6" />
+                        </div>
+                      </template>
+                    </q-img>
+                  </div>
 
-                    <!-- Контент новости -->
-                    <div class="col">
-                      <q-card-section class="q-pa-md">
+                  <!-- Контент новости -->
+                  <q-card-section class="q-pa-md mobile-pulse-news-section">
                         <!-- Мета информация -->
                         <div class="row items-center q-mb-sm">
                           <div class="col-auto">
@@ -296,59 +309,41 @@
                           {{ news.description }}
                         </div>
 
-                        <!-- Теги и действия -->
-                        <div class="row items-center justify-between">
-                          <div class="col">
-                            <div class="news-tags">
-                              <q-chip
-                                v-for="tag in (news.tags || []).slice(0, 3)"
-                                :key="tag"
-                                dense
-                                outline
-                                color="grey-7"
-                                class="q-mr-xs"
-                              >
-                                {{ tag }}
-                              </q-chip>
-                              <span v-if="(news.tags || []).length > 3" class="text-grey-6 text-caption">
-                                +{{ (news.tags || []).length - 3 }} еще
-                              </span>
-                            </div>
-                          </div>
-                          <div class="col-auto">
-                            <div class="news-actions">
-                              <q-btn
-                                flat
-                                dense
-                                round
-                                icon="visibility"
-                                color="grey-6"
-                                @click.stop="viewNews(news)"
-                              >
-                                <q-tooltip>Просмотров: {{ news.view_count }}</q-tooltip>
-                              </q-btn>
-                              <q-btn
-                                flat
-                                dense
-                                round
-                                icon="share"
-                                color="grey-6"
-                                @click.stop="shareNews(news)"
-                              />
-                              <q-btn
-                                flat
-                                dense
-                                round
-                                icon="bookmark_border"
-                                color="grey-6"
-                                @click.stop="bookmarkNews(news)"
-                              />
-                            </div>
-                          </div>
+                    <!-- Действия -->
+                    <div class="row items-center justify-between q-mt-sm">
+                      <div class="col">
+                        <div class="news-actions">
+                          <q-icon name="visibility" class="q-mr-xs" size="sm" />
+                          <span class="text-body2">{{ news.view_count || 0 }}</span>
                         </div>
-                      </q-card-section>
+                      </div>
+                      <div class="col-auto">
+                        <div class="news-action-buttons">
+                          <q-btn
+                            flat
+                            dense
+                            round
+                            icon="share"
+                            size="sm"
+                            @click.stop="shareNews(news)"
+                            class="q-mr-xs"
+                          >
+                            <q-tooltip>Поделиться</q-tooltip>
+                          </q-btn>
+                          <q-btn
+                            flat
+                            dense
+                            round
+                            icon="bookmark_border"
+                            size="sm"
+                            @click.stop="bookmarkNews(news)"
+                          >
+                            <q-tooltip>В закладки</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </q-card-section>
 
                   <!-- Индикатор актуальности -->
                   <div
@@ -495,27 +490,25 @@
           <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
 
-        <q-card-section v-if="selectedNews">
-          <div class="row no-wrap">
-            <!-- Изображение новости -->
-            <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="col-auto">
-              <q-img
-                :src="selectedNews.image_url || selectedNews.image"
-                style="width: 200px; height: 200px"
-                class="rounded-borders news-image"
-                fit="cover"
-              >
-                <template v-slot:error>
-                  <div class="absolute-full flex flex-center bg-grey-3">
-                    <q-icon name="image" size="lg" color="grey-6" />
-                  </div>
-                </template>
-              </q-img>
-            </div>
+        <q-card-section v-if="selectedNews" class="dialog-news-section">
+          <!-- Изображение новости -->
+          <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="dialog-image-wrapper">
+            <q-img
+              :src="selectedNews.image_url || selectedNews.image"
+              :ratio="16/9"
+              class="rounded-borders dialog-news-image"
+              fit="cover"
+            >
+              <template v-slot:error>
+                <div class="absolute-full flex flex-center bg-grey-3">
+                  <q-icon name="image" size="lg" color="grey-6" />
+                </div>
+              </template>
+            </q-img>
+          </div>
 
-            <!-- Контент новости -->
-            <div class="col">
-              <q-card-section class="q-pa-md">
+          <!-- Контент новости -->
+          <div class="dialog-news-content">
                 <!-- Мета информация -->
                 <div class="row items-center q-mb-sm">
                   <div class="col-auto">
@@ -573,18 +566,15 @@
                   </div>
                 </div>
 
-                <!-- Действия -->
-                <div class="row justify-end">
-                  <div class="col-auto">
-                    <q-btn
-                      color="secondary"
-                      label="Закрыть"
-                      @click="showNewsDialog = false"
-                      flat
-                    />
-                  </div>
-                </div>
-              </q-card-section>
+            <!-- Действия -->
+            <div class="row justify-center q-mt-lg">
+              <q-btn
+                color="secondary"
+                label="Закрыть"
+                @click="showNewsDialog = false"
+                flat
+                class="q-px-xl"
+              />
             </div>
           </div>
         </q-card-section>
@@ -611,6 +601,12 @@ const showNewsDialog = ref(false)
 const selectedNews = ref(null)
 const showCreatePulse = ref(false)
 const editingPulse = ref(null)
+
+// Состояние для улучшенных индикаторов загрузки
+const isLoadingNews = ref(false)
+const loadingMessage = ref('')
+const retryCount = ref(0)
+const maxRetries = ref(3)
 
 // Данные для создания пульса
 const newPulse = ref({
@@ -925,10 +921,6 @@ function openNews(news) {
   showNewsDialog.value = true
 }
 
-function viewNews(news) {
-  console.log('Просмотр новости:', news.id)
-}
-
 function shareNews(news) {
   if (navigator.share) {
     navigator.share({
@@ -1058,6 +1050,11 @@ async function loadPulseNewsFromApi(pulse) {
       return
     }
     
+    // Устанавливаем состояние загрузки
+    isLoadingNews.value = true
+    loadingMessage.value = 'Загружаем новости...'
+    retryCount.value = 0
+    
     // Убираем проверку существования пульса в userPulses.value
     // так как это может вызывать проблемы с вновь созданными пульсами
     
@@ -1135,14 +1132,41 @@ async function loadPulseNewsFromApi(pulse) {
     }
     
     lastUpdate.value = new Date().toLocaleTimeString('ru-RU')
+    isLoadingNews.value = false
+    loadingMessage.value = ''
   } catch (error) {
+    isLoadingNews.value = false
+    loadingMessage.value = ''
+    
     const apiError = handleApiError(error, 'Ошибка загрузки новостей пульса')
     console.error('Error loading pulse news:', apiError)
     
+    // Показываем более информативное сообщение об ошибке
+    let errorMessage = apiError.message
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Превышено время ожидания. Попробуйте обновить страницу.'
+    } else if (error.response?.status >= 500) {
+      errorMessage = 'Ошибка сервера. Попробуйте позже.'
+    } else if (!error.response) {
+      errorMessage = 'Проблема с подключением. Проверьте интернет-соединение.'
+    }
+    
     $q.notify({
-      message: apiError.message,
+      message: errorMessage,
       type: 'negative',
-      position: 'bottom'
+      position: 'bottom',
+      timeout: 5000,
+      actions: [
+        {
+          label: 'Повторить',
+          color: 'white',
+          handler: () => {
+            if (selectedPulse.value) {
+              loadPulseNewsFromApi(selectedPulse.value)
+            }
+          }
+        }
+      ]
     })
   }
 }
@@ -1301,6 +1325,7 @@ async function updatePulseNewsFromApi() {
   
   isUpdating.value = true
   updateProgress.value = 0
+  loadingMessage.value = 'Обновляем новости...'
   
   try {
     // Запускаем обновление пульса
@@ -1319,16 +1344,40 @@ async function updatePulseNewsFromApi() {
     setTimeout(async () => {
       await loadPulseNewsFromApi(selectedPulse.value)
       isUpdating.value = false
+      loadingMessage.value = ''
     }, 1000)
     
   } catch (error) {
+    isUpdating.value = false
+    loadingMessage.value = ''
+    
     const apiError = handleApiError(error, 'Ошибка обновления новостей')
     console.error('Error updating pulse news:', apiError)
     
+    // Показываем более информативное сообщение об ошибке
+    let errorMessage = apiError.message
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Превышено время ожидания при обновлении.'
+    } else if (error.response?.status >= 500) {
+      errorMessage = 'Ошибка сервера при обновлении.'
+    } else if (!error.response) {
+      errorMessage = 'Проблема с подключением при обновлении.'
+    }
+    
     $q.notify({
-      message: apiError.message,
+      message: errorMessage,
       type: 'negative',
-      position: 'bottom'
+      position: 'bottom',
+      timeout: 5000,
+      actions: [
+        {
+          label: 'Повторить',
+          color: 'white',
+          handler: () => {
+            updatePulseNewsFromApi()
+          }
+        }
+      ]
     })
   }
 }
@@ -1761,20 +1810,256 @@ const isContentCorrupted = (content) => {
   }
 }
 
+// Дополнительная мобильная адаптация для IndexPage
+@media (max-width: 599px) {
+  .mobile-pulse-header {
+    flex-wrap: wrap;
+    
+    .mobile-back-btn {
+      margin-right: 8px !important;
+    }
+    
+    .mobile-pulse-title-wrapper {
+      flex: 1;
+      min-width: 0;
+      
+      .mobile-pulse-title {
+        font-size: 1.25rem !important;
+        line-height: 1.3 !important;
+        margin-bottom: 4px;
+      }
+      
+      .mobile-pulse-desc {
+        font-size: 0.875rem !important;
+        line-height: 1.4 !important;
+      }
+    }
+    
+    .mobile-refresh-btn-wrapper {
+      width: 100%;
+      
+      .mobile-refresh-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+  
+  // Статистика пульса
+  .status-card {
+    .q-card-section {
+      padding: 12px !important;
+      flex-direction: column !important;
+      
+      .col, .col-auto {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 8px;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+      
+      .text-caption {
+        font-size: 0.8rem !important;
+      }
+    }
+  }
+  
+  // Карточки новостей в пульсе
+  .news-card {
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+    overflow: hidden;
+    
+    .news-image-wrapper {
+      width: 100%;
+      
+      .news-image {
+        width: 100%;
+      }
+    }
+    
+    .mobile-pulse-news-section {
+      padding: 16px !important;
+    }
+    
+    .news-meta {
+      font-size: 0.875rem !important;
+      flex-wrap: wrap;
+      gap: 8px;
+      display: flex;
+      align-items: center;
+      
+      .country-flag {
+        font-size: 1rem !important;
+      }
+      
+      .source-name {
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+      }
+      
+      .q-separator {
+        display: none;
+      }
+    }
+    
+    .news-title {
+      font-size: 1.1rem !important;
+      line-height: 1.5 !important;
+      font-weight: 600 !important;
+      margin-bottom: 12px !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .news-description {
+      font-size: 0.95rem !important;
+      line-height: 1.6 !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .news-actions {
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+    
+    .news-action-buttons {
+      display: flex;
+      gap: 4px;
+      
+      .q-btn {
+        padding: 8px !important;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+    
+    .q-chip {
+      font-size: 0.8rem !important;
+      height: 28px !important;
+    }
+  }
+  
+  // Диалог создания пульса
+  .q-dialog .q-card {
+    .q-card-section {
+      padding: 16px !important;
+      
+      .text-h6 {
+        font-size: 1.2rem !important;
+      }
+    }
+    
+    .q-input, .q-select {
+      margin-bottom: 12px !important;
+    }
+    
+    .q-chip {
+      font-size: 0.75rem !important;
+      margin: 4px 2px !important;
+    }
+  }
+}
 
-// Стили для новостей (скопированы из NewsPage.vue)
+@media (max-width: 400px) {
+  .mobile-pulse-header {
+    .mobile-pulse-title {
+      font-size: 1.1rem !important;
+    }
+    
+    .mobile-pulse-desc {
+      font-size: 0.8rem !important;
+    }
+  }
+  
+  .news-card {
+    .news-meta {
+      font-size: 0.75rem !important;
+      
+      .source-name {
+        font-size: 0.8rem !important;
+      }
+    }
+    
+    .news-title {
+      font-size: 0.95rem !important;
+    }
+    
+    .news-description {
+      font-size: 0.8rem !important;
+    }
+    
+    .q-chip {
+      font-size: 0.7rem !important;
+      height: 22px !important;
+    }
+  }
+}
+
+
+// Стили для изображений новостей
+.news-image-wrapper {
+  width: 100%;
+  overflow: hidden;
+  
+  .news-image {
+    width: 100%;
+    transition: transform 0.3s ease;
+  }
+}
+
+// Стили для новостей
 .news-card {
   transition: all 0.3s ease;
   border: 1px solid var(--border-primary);
+  overflow: hidden;
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
+    
+    .news-image {
+      transform: scale(1.05);
+    }
   }
 }
 
-.news-image {
-  border-radius: 8px;
+// Ограничение размера изображений для десктопа
+@media (min-width: 600px) {
+  .news-card {
+    display: flex;
+    flex-direction: row;
+    
+    .news-image-wrapper {
+      width: 240px;
+      min-width: 240px;
+      max-width: 240px;
+      height: 160px;
+      flex-shrink: 0;
+      
+      .news-image {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-card {
+    .news-image-wrapper {
+      width: 280px;
+      min-width: 280px;
+      max-width: 280px;
+      height: 180px;
+    }
+  }
 }
 
 .news-title {
@@ -1831,5 +2116,103 @@ const isContentCorrupted = (content) => {
   padding: 8px;
   border-radius: 4px;
   border-left: 4px solid var(--q-negative);
+}
+
+// Стили для индикатора загрузки
+.loading-card {
+  min-width: 300px;
+  max-width: 400px;
+  border-radius: 16px;
+  padding: 24px;
+  
+  .q-spinner-dots {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// Стили для диалога просмотра новости
+.dialog-news-section {
+  padding: 0 !important;
+}
+
+.dialog-image-wrapper {
+  width: 100%;
+  margin-bottom: 20px;
+  
+  .dialog-news-image {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+// Ограничение размера изображения в диалоге для десктопа
+@media (min-width: 600px) {
+  .dialog-image-wrapper {
+    max-width: 800px;
+    max-height: 450px;
+    margin: 0 auto 20px auto;
+    overflow: hidden;
+    
+    .dialog-news-image {
+      max-height: 450px;
+      object-fit: contain;
+      width: 100%;
+    }
+  }
+}
+
+.dialog-news-content {
+  padding: 20px;
+  
+  .news-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .news-title {
+    font-size: 1.4rem;
+    line-height: 1.5;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  
+  .news-description {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  
+  .news-content-text {
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+}
+
+// Мобильная адаптация диалога
+@media (max-width: 599px) {
+  .dialog-news-content {
+    padding: 16px;
+    
+    .news-title {
+      font-size: 1.2rem;
+    }
+    
+    .news-description {
+      font-size: 1rem;
+    }
+  }
 }
 </style>

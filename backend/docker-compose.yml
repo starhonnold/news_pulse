@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     ports:
       - "${API_GATEWAY_PORT:-8080}:8080"
+      - "${API_GATEWAY_HTTPS_PORT:-8443}:8443"
       - "${API_GATEWAY_HEALTH_PORT:-8090}:8090"
       - "${API_GATEWAY_METRICS_PORT:-9090}:9090"
     environment:
@@ -35,6 +36,36 @@ services:
     #   start_period: 60s
     volumes:
       - gateway_logs:/var/log
+
+  # AI Model Service - сервис AI классификации
+  ai-model-service:
+    build:
+      context: ./ai-model-service
+      dockerfile: Dockerfile
+    container_name: news_pulse_ai_model_service
+    restart: unless-stopped
+    ports:
+      - "${AI_MODEL_SERVICE_PORT:-8001}:8001"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8001
+      - MODEL_NAME=IlyaGusev/mbart_ru_sum_gazeta
+    volumes:
+      - ai_models:/app/models
+    networks:
+      - news_pulse_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
   # Notification Service - сервис уведомлений
   notification-service:
@@ -80,9 +111,9 @@ services:
     container_name: news_pulse_parsing_service
     restart: unless-stopped
     ports:
-      - "${NEWS_PARSING_PORT:-8085}:8081"
-      - "${NEWS_PARSING_HEALTH_PORT:-8095}:8091"
-      - "${NEWS_PARSING_METRICS_PORT:-9095}:9091"
+      - "${NEWS_PARSING_PORT:-8086}:8081"
+      - "${NEWS_PARSING_HEALTH_PORT:-8096}:8091"
+      - "${NEWS_PARSING_METRICS_PORT:-9096}:9091"
     environment:
       - APP_ENV=${APP_ENV:-production}
       - POSTGRES_HOST=postgres
@@ -94,15 +125,23 @@ services:
       - RSS_MAX_CONCURRENT_PARSERS=${RSS_MAX_CONCURRENT_PARSERS:-5}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-                  - GOOGLE_AI_API_KEY=AIzaSyCjdX3fkQFnTa2viTxb4rSUNBFfHZwdG6E
+      - GOOGLE_AI_API_KEY=AIzaSyCjdX3fkQFnTa2viTxb4rSUNBFfHZwdG6E
       - PROXY_ENABLED=${PROXY_ENABLED:-false}
       - PROXY_URL=${PROXY_URL:-http://195.96.157.223:9765}
       - PROXY_USERNAME=${PROXY_USERNAME:-user322683}
       - PROXY_PASSWORD=${PROXY_PASSWORD:-97fgob}
       - OLLAMA_URL=http://ollama:11434
+      # AI Configuration (DEPRECATED)
+      - AI_ENABLED=false
+      # FastText Configuration (Используется с полным контентом)
+      - FASTTEXT_ENABLED=true
+      - FASTTEXT_SERVICE_URL=http://news-classificator-service:8085
+      - FASTTEXT_TIMEOUT_SECONDS=30
+      - FASTTEXT_MIN_CONFIDENCE=0.15
+      - FASTTEXT_USE_FALLBACK=true
     depends_on:
       - postgres
-      - ollama
+      - news-classificator-service  # NEW: FastText классификатор
     networks:
       - news_pulse_network
     # healthcheck:
@@ -185,7 +224,7 @@ services:
     volumes:
       - pulse_logs:/var/log
 
-  # Ollama AI сервис для классификации новостей
+  # Ollama AI сервис для классификации новостей (DEPRECATED - используйте news-classificator-service)
   ollama:
     image: ollama/ollama:latest
     container_name: news_pulse_ollama
@@ -205,13 +244,63 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    profiles:
+      - deprecated  # Сервис отключен по умолчанию (запустите с --profile deprecated)
+
+  # FastText News Classifier - новый сервис классификации новостей (NEW)
+  news-classificator-service:
+    build:
+      context: ./news-classificator-service
+      dockerfile: Dockerfile
+    container_name: news_classificator_service
+    restart: unless-stopped
+    ports:
+      - "${FASTTEXT_SERVICE_PORT:-8085}:8085"
+    environment:
+      - PORT=8085
+      - MODEL_NAME=data-silence/fasttext-rus-news-classifier
+      - MAX_WORKERS=4
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - fasttext_models:/app/models  # Кэш моделей
+      - fasttext_logs:/var/log
+    networks:
+      - news_pulse_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     deploy:
       resources:
+        limits:
+          memory: 2G
         reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+          memory: 512M
+
+  # Frontend - Quasar приложение
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: news_pulse_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HTTP_PORT:-3000}:80"
+      - "${FRONTEND_HTTPS_PORT:-3443}:443"
+    depends_on:
+      - api-gateway
+    networks:
+      - news_pulse_network
+    volumes:
+      - ../ssl:/etc/nginx/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # PostgreSQL база данных
   postgres:
@@ -271,7 +360,15 @@ volumes:
     name: news_pulse_gateway_logs
   notification_logs:
     driver: local
-    name: news_pulse_notification_logs
+  fasttext_models:
+    driver: local
+    name: news_pulse_fasttext_models
+  fasttext_logs:
+    driver: local
+    name: news_pulse_fasttext_logs
+  ai_models:
+    driver: local
+    name: news_pulse_ai_models
 
 networks:
   news_pulse_network:

@@ -18,6 +18,7 @@ type Config struct {
 	Metrics     MetricsConfig  `yaml:"metrics"`
 	Proxy       ProxyConfig    `yaml:"proxy"`
 	AI          AIConfig       `yaml:"ai"`
+	FastText    FastTextConfig `yaml:"fasttext"`
 	Environment string         `yaml:"-"`
 }
 
@@ -85,13 +86,25 @@ type ProxyConfig struct {
 	Password string `yaml:"password"`
 }
 
-// AIConfig конфигурация AI классификатора
+// AIConfig конфигурация AI классификатора (Ollama - ОТКЛЮЧЕН)
 type AIConfig struct {
-	OllamaURL     string        `yaml:"ollama_url"`
-	Model         string        `yaml:"model"`
+	Enabled             bool          `yaml:"enabled"`
+	ModelURL            string        `yaml:"model_url"`
+	Timeout             time.Duration `yaml:"timeout"`
+	MaxRetries          int           `yaml:"max_retries"`
+	RetryDelay          time.Duration `yaml:"retry_delay"`
+	BatchSize           int           `yaml:"batch_size"`
+	ConfidenceThreshold float64       `yaml:"confidence_threshold"`
+	UseFallback         bool          `yaml:"use_fallback"`
+}
+
+// FastTextConfig конфигурация FastText классификатора
+type FastTextConfig struct {
+	Enabled       bool          `yaml:"enabled"`
+	ServiceURL    string        `yaml:"service_url"`
 	Timeout       time.Duration `yaml:"timeout"`
-	MaxConcurrent int           `yaml:"max_concurrent"`
-	Temperature   float64       `yaml:"temperature"`
+	MinConfidence float64       `yaml:"min_confidence"`
+	UseFallback   bool          `yaml:"use_fallback"`
 }
 
 // LoadConfig загружает конфигурацию из файла и переменных окружения
@@ -200,27 +213,53 @@ func (c *Config) overrideFromEnv() {
 		c.Proxy.Password = password
 	}
 
-	// AI Configuration
-	if url := os.Getenv("OLLAMA_URL"); url != "" {
-		c.AI.OllamaURL = url
+	// AI Configuration (Ollama - DEPRECATED, use FastText instead)
+	if enabled := os.Getenv("AI_CLASSIFICATION_ENABLED"); enabled != "" {
+		c.AI.Enabled = enabled == "true"
 	}
-	if model := os.Getenv("AI_MODEL"); model != "" {
-		c.AI.Model = model
+	if modelURL := os.Getenv("AI_MODEL_SERVICE_URL"); modelURL != "" {
+		c.AI.ModelURL = modelURL
 	}
-	if timeout := os.Getenv("AI_TIMEOUT"); timeout != "" {
-		if d := parseDuration(timeout, c.AI.Timeout); d > 0 {
+	if timeout := os.Getenv("AI_TIMEOUT_SECONDS"); timeout != "" {
+		if d := parseDuration(timeout+"s", c.AI.Timeout); d > 0 {
 			c.AI.Timeout = d
 		}
 	}
-	if maxConcurrent := os.Getenv("AI_MAX_CONCURRENT"); maxConcurrent != "" {
-		if mc := parseInt(maxConcurrent, c.AI.MaxConcurrent); mc > 0 {
-			c.AI.MaxConcurrent = mc
+	if maxRetries := os.Getenv("AI_MAX_RETRIES"); maxRetries != "" {
+		if mr := parseInt(maxRetries, c.AI.MaxRetries); mr > 0 {
+			c.AI.MaxRetries = mr
 		}
 	}
-	if temperature := os.Getenv("AI_TEMPERATURE"); temperature != "" {
-		if t := parseFloat(temperature, c.AI.Temperature); t >= 0 {
-			c.AI.Temperature = t
+	if batchSize := os.Getenv("AI_BATCH_SIZE"); batchSize != "" {
+		if bs := parseInt(batchSize, c.AI.BatchSize); bs > 0 {
+			c.AI.BatchSize = bs
 		}
+	}
+	if confidenceThreshold := os.Getenv("AI_CONFIDENCE_THRESHOLD"); confidenceThreshold != "" {
+		if ct := parseFloat(confidenceThreshold, c.AI.ConfidenceThreshold); ct >= 0 {
+			c.AI.ConfidenceThreshold = ct
+		}
+	}
+
+	// FastText Configuration
+	if enabled := os.Getenv("FASTTEXT_ENABLED"); enabled != "" {
+		c.FastText.Enabled = enabled == "true"
+	}
+	if serviceURL := os.Getenv("FASTTEXT_SERVICE_URL"); serviceURL != "" {
+		c.FastText.ServiceURL = serviceURL
+	}
+	if timeout := os.Getenv("FASTTEXT_TIMEOUT_SECONDS"); timeout != "" {
+		if d := parseDuration(timeout+"s", c.FastText.Timeout); d > 0 {
+			c.FastText.Timeout = d
+		}
+	}
+	if minConfidence := os.Getenv("FASTTEXT_MIN_CONFIDENCE"); minConfidence != "" {
+		if mc := parseFloat(minConfidence, c.FastText.MinConfidence); mc >= 0 {
+			c.FastText.MinConfidence = mc
+		}
+	}
+	if useFallback := os.Getenv("FASTTEXT_USE_FALLBACK"); useFallback != "" {
+		c.FastText.UseFallback = useFallback == "true"
 	}
 }
 

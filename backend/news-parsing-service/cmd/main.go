@@ -63,7 +63,7 @@ func main() {
 	)
 
 	// Создание HTTP обработчиков
-	handler := handlers.NewHandler(parsingService, logger)
+	handler := handlers.NewHandler(parsingService, newsSourceRepo, logger)
 
 	// Настройка HTTP сервера
 	mux := handler.SetupRoutes()
@@ -76,10 +76,7 @@ func main() {
 	}
 
 	// Запуск сервиса парсинга
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if err := parsingService.Start(ctx); err != nil {
+	if err := parsingService.Start(); err != nil {
 		logger.WithError(err).Fatal("Failed to start parsing service")
 	}
 

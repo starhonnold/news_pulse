@@ -46,10 +46,11 @@ func (r *NewsRepository) GetByID(ctx context.Context, id int) (*models.News, err
 	var sourceName, sourceDomain, sourceLogoURL string
 	var categoryName, categorySlug, categoryColor, categoryIcon sql.NullString
 	var countryName, countryCode, countryFlag sql.NullString
+	var description, content, imageURL, author sql.NullString
 	
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&news.ID, &news.Title, &news.Description, &news.Content,
-		&news.URL, &news.ImageURL, &news.Author, &news.SourceID,
+		&news.ID, &news.Title, &description, &content,
+		&news.URL, &imageURL, &author, &news.SourceID,
 		&news.CategoryID, &news.PublishedAt, &news.ParsedAt,
 		&news.RelevanceScore, &news.ViewCount, &news.IsActive,
 		&news.CreatedAt, &news.UpdatedAt,
@@ -64,6 +65,12 @@ func (r *NewsRepository) GetByID(ctx context.Context, id int) (*models.News, err
 		}
 		return nil, fmt.Errorf("failed to get news: %w", err)
 	}
+	
+	// Обрабатываем NULL значения
+	news.Description = description.String
+	news.Content = content.String
+	news.ImageURL = imageURL.String
+	news.Author = author.String
 	
 	// Заполняем связанные данные
 	news.Source = &models.NewsSource{
@@ -128,10 +135,11 @@ func (r *NewsRepository) GetByFilter(ctx context.Context, filter models.NewsFilt
 		var sourceName, sourceDomain, sourceLogoURL string
 		var categoryName, categorySlug, categoryColor, categoryIcon sql.NullString
 		var countryName, countryCode, countryFlag sql.NullString
+		var description, content, imageURL, author sql.NullString
 		
 		err := rows.Scan(
-			&news.ID, &news.Title, &news.Description, &news.Content,
-			&news.URL, &news.ImageURL, &news.Author, &news.SourceID,
+			&news.ID, &news.Title, &description, &content,
+			&news.URL, &imageURL, &author, &news.SourceID,
 			&news.CategoryID, &news.PublishedAt, &news.ParsedAt,
 			&news.RelevanceScore, &news.ViewCount, &news.IsActive,
 			&news.CreatedAt, &news.UpdatedAt,
@@ -143,6 +151,12 @@ func (r *NewsRepository) GetByFilter(ctx context.Context, filter models.NewsFilt
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan news: %w", err)
 		}
+		
+		// Обрабатываем NULL значения
+		news.Description = description.String
+		news.Content = content.String
+		news.ImageURL = imageURL.String
+		news.Author = author.String
 		
 		// Заполняем связанные данные
 		news.Source = &models.NewsSource{

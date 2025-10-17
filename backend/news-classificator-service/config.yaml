@@ -1,0 +1,37 @@
+# News Classificator Service Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 8085
+  workers: 1
+
+model:
+  repo_id: "data-silence/fasttext-rus-news-classifier"
+  filename: "fasttext_news_classifier.bin"
+  cache_dir: "./model_cache"
+
+# Маппинг категорий FastText (11) -> News Pulse (5)
+category_mapping:
+  sports: 1      # Спорт -> Спорт
+  science: 2     # Наука -> Технологии
+  politics: 3    # Политика -> Политика
+  economy: 4     # Экономика -> Экономика и финансы
+  society: 5     # Общество -> Общество
+  culture: 5     # Культура -> Общество
+  health: 5      # Здоровье -> Общество
+  travel: 5      # Путешествия -> Общество
+  conflicts: 3   # Конфликты -> Политика
+  climate: 5     # Климат -> Общество
+  gloss: 5       # Глянец -> Общество
+
+category_names:
+  1: "Спорт"
+  2: "Технологии"
+  3: "Политика"
+  4: "Экономика и финансы"
+  5: "Общество"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+

@@ -162,46 +162,44 @@
                 class="news-card cursor-pointer fade-in-up"
                 @click="openNews(news)"
               >
-                <div class="row no-wrap">
-                  <!-- Изображение новости -->
-                  <div v-if="isValidImageUrl(news.image_url || news.image)" class="col-auto">
-                    <q-img
-                      :src="news.image_url || news.image"
-                      style="width: 120px; height: 120px"
-                      class="rounded-borders news-image"
-                      fit="cover"
-                    >
-                      <template v-slot:error>
-                        <div class="absolute-full flex flex-center bg-grey-3">
-                          <q-icon name="image" size="lg" color="grey-6" />
-                        </div>
-                      </template>
-                    </q-img>
-                  </div>
+                <!-- Изображение новости -->
+                <div v-if="isValidImageUrl(news.image_url || news.image)" class="news-image-wrapper">
+                  <q-img
+                    :src="news.image_url || news.image"
+                    :ratio="16/9"
+                    class="news-image"
+                    fit="cover"
+                  >
+                    <template v-slot:error>
+                      <div class="absolute-full flex flex-center bg-grey-3">
+                        <q-icon name="image" size="lg" color="grey-6" />
+                      </div>
+                    </template>
+                  </q-img>
+                </div>
 
-                  <!-- Контент новости -->
-                  <div class="col">
-                    <q-card-section class="q-pa-md">
+                <!-- Контент новости -->
+                <q-card-section class="q-pa-md mobile-card-section">
                       <!-- Мета информация -->
-                      <div class="row items-center q-mb-sm">
-                        <div class="col-auto">
-                          <div class="news-meta">
+                      <div class="row items-center q-mb-sm mobile-news-meta-wrapper">
+                        <div class="col-12 col-sm-auto">
+                          <div class="news-meta mobile-news-meta">
                             <span class="country-flag q-mr-xs">{{ news.country?.flag_emoji || news.country?.flag || '🌍' }}</span>
-                            <span class="source-name text-weight-medium text-primary">
+                            <span class="source-name text-weight-medium text-primary mobile-source-name">
                               {{ news.source?.name || news.source_name || 'Неизвестный источник' }}
                             </span>
-                            <q-separator vertical class="q-mx-sm" />
-                            <span class="text-grey-7">{{ formatDate(news.published_at) }}</span>
+                            <q-separator vertical class="q-mx-sm mobile-separator" />
+                            <span class="text-grey-7 mobile-date">{{ formatDate(news.published_at) }}</span>
                           </div>
                         </div>
-                        <div class="col-auto">
+                        <div class="col-12 col-sm-auto q-mt-xs q-mt-sm-none">
                           <q-chip
                             v-if="news.category && news.category.name"
                             :color="news.category.color || 'primary'"
                             :style="news.category.color ? `background-color: ${news.category.color} !important; border-color: ${news.category.color} !important;` : ''"
                             text-color="white"
                             dense
-                            class="q-ml-sm"
+                            class="q-ml-none q-ml-sm-sm mobile-category-chip"
                           >
                             <q-icon :name="getCategoryIcon(news.category.icon)" class="q-mr-xs" />
                             {{ news.category.name }}
@@ -219,41 +217,41 @@
                         {{ cleanText(news.description) }}
                       </div>
 
-                      <!-- Действия справа -->
-                      <div class="row items-center justify-between">
-                        <div class="col">
-                          <div class="news-actions">
-                            <q-icon name="visibility" class="q-mr-xs" />
-                            {{ news.view_count || 0 }}
-                          </div>
-                        </div>
-                        <div class="col-auto">
-                          <div class="news-action-buttons">
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="share"
-                              @click.stop="shareNews(news)"
-                              class="q-mr-xs"
-                            >
-                              <q-tooltip>Поделиться</q-tooltip>
-                            </q-btn>
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="bookmark_border"
-                              @click.stop="bookmarkNews(news)"
-                            >
-                              <q-tooltip>В закладки</q-tooltip>
-                            </q-btn>
-                          </div>
-                        </div>
+                  <!-- Действия справа -->
+                  <div class="row items-center justify-between q-mt-sm">
+                    <div class="col">
+                      <div class="news-actions">
+                        <q-icon name="visibility" class="q-mr-xs" size="sm" />
+                        <span class="text-body2">{{ news.view_count || 0 }}</span>
                       </div>
-                    </q-card-section>
+                    </div>
+                    <div class="col-auto">
+                      <div class="news-action-buttons">
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="share"
+                          size="sm"
+                          @click.stop="shareNews(news)"
+                          class="q-mr-xs"
+                        >
+                          <q-tooltip>Поделиться</q-tooltip>
+                        </q-btn>
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="bookmark_border"
+                          size="sm"
+                          @click.stop="bookmarkNews(news)"
+                        >
+                          <q-tooltip>В закладки</q-tooltip>
+                        </q-btn>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </q-card-section>
 
                 <!-- Индикатор новой новости -->
                 <div
@@ -286,27 +284,25 @@
           <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
 
-        <q-card-section v-if="selectedNews">
-          <div class="row no-wrap">
-                    <!-- Изображение новости -->
-                    <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="col-auto">
-                      <q-img
-                        :src="selectedNews.image_url || selectedNews.image"
-                        style="width: 200px; height: 200px"
-                        class="rounded-borders news-image"
-                        fit="cover"
-                      >
-                        <template v-slot:error>
-                          <div class="absolute-full flex flex-center bg-grey-3">
-                            <q-icon name="image" size="lg" color="grey-6" />
-                          </div>
-                        </template>
-                      </q-img>
-                    </div>
+        <q-card-section v-if="selectedNews" class="dialog-news-section">
+          <!-- Изображение новости -->
+          <div v-if="isValidImageUrl(selectedNews.image_url || selectedNews.image)" class="dialog-image-wrapper">
+            <q-img
+              :src="selectedNews.image_url || selectedNews.image"
+              :ratio="16/9"
+              class="rounded-borders dialog-news-image"
+              fit="cover"
+            >
+              <template v-slot:error>
+                <div class="absolute-full flex flex-center bg-grey-3">
+                  <q-icon name="image" size="lg" color="grey-6" />
+                </div>
+              </template>
+            </q-img>
+          </div>
 
-            <!-- Контент новости -->
-            <div class="col">
-              <q-card-section class="q-pa-md">
+          <!-- Контент новости -->
+          <div class="dialog-news-content">
                 <!-- Мета информация -->
                 <div class="row items-center q-mb-sm">
                   <div class="col-auto">
@@ -364,18 +360,15 @@
                   </div>
                 </div>
 
-                <!-- Действия -->
-                <div class="row justify-end">
-                  <div class="col-auto">
-                    <q-btn
-                      color="secondary"
-                      label="Закрыть"
-                      @click="showNewsDialog = false"
-                      flat
-                    />
-                  </div>
-                </div>
-              </q-card-section>
+            <!-- Действия -->
+            <div class="row justify-center q-mt-lg">
+              <q-btn
+                color="secondary"
+                label="Закрыть"
+                @click="showNewsDialog = false"
+                flat
+                class="q-px-xl"
+              />
             </div>
           </div>
         </q-card-section>
@@ -806,14 +799,11 @@ const isNewNews = (news) => {
 // Функция для получения правильной иконки категории
 const getCategoryIcon = (iconName) => {
   const iconMap = {
+    'sport': 'sports_soccer',
+    'tech': 'computer',
     'politics': 'account_balance',
-    'trending-up': 'trending_up',
-    'sports': 'sports_soccer',
-    'cpu': 'computer',
-    'palette': 'palette',
-    'flask': 'science',
-    'users': 'group',
-    'alert-triangle': 'warning'
+    'economy': 'trending_up',
+    'society': 'group'
   }
   return iconMap[iconName] || 'info'
 }
@@ -1014,6 +1004,333 @@ onMounted(() => {
       text-align: center;
       color: var(--q-orange-8);
       font-style: italic;
+    }
+  }
+}
+
+// Стили для изображения новости
+.news-image-wrapper {
+  width: 100%;
+  overflow: hidden;
+  
+  .news-image {
+    width: 100%;
+    transition: transform 0.3s ease;
+  }
+}
+
+.news-card:hover .news-image {
+  transform: scale(1.05);
+}
+
+// Ограничение размера изображений для десктопа
+@media (min-width: 600px) {
+  .news-card {
+    display: flex;
+    flex-direction: row;
+    
+    .news-image-wrapper {
+      width: 240px;
+      min-width: 240px;
+      max-width: 240px;
+      height: 160px;
+      flex-shrink: 0;
+      
+      .news-image {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-card {
+    .news-image-wrapper {
+      width: 280px;
+      min-width: 280px;
+      max-width: 280px;
+      height: 180px;
+    }
+  }
+}
+
+// Мобильная адаптация
+@media (max-width: 599px) {
+  .mobile-card-section {
+    padding: 16px !important;
+  }
+  
+  .mobile-news-meta-wrapper {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+  
+  .mobile-news-meta {
+    font-size: 0.875rem !important;
+    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .mobile-source-name {
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
+    }
+    
+    .mobile-date {
+      font-size: 0.85rem !important;
+    }
+    
+    .mobile-separator {
+      height: 14px !important;
+    }
+  }
+  
+  .mobile-category-chip {
+    font-size: 0.8rem !important;
+    height: 28px !important;
+    padding: 4px 10px !important;
+  }
+  
+  .news-card {
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+    overflow: hidden;
+    
+    .news-image-wrapper {
+      width: 100%;
+      
+      .news-image {
+        width: 100%;
+      }
+    }
+    
+    .news-title {
+      font-size: 1.1rem !important;
+      line-height: 1.5 !important;
+      font-weight: 600 !important;
+      margin-bottom: 12px !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .news-description {
+      font-size: 0.95rem !important;
+      line-height: 1.6 !important;
+      color: var(--text-secondary) !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .news-actions {
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+    
+    .news-action-buttons {
+      display: flex;
+      gap: 4px;
+      
+      .q-btn {
+        padding: 8px !important;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+  }
+  
+  // Фильтры
+  .modern-card {
+    .row.q-gutter-sm {
+      .col-12 {
+        margin-bottom: 8px;
+      }
+    }
+  }
+  
+  // Статистика
+  .status-card {
+    .q-card-section {
+      padding: 12px !important;
+      
+      .text-caption {
+        font-size: 0.75rem !important;
+      }
+      
+      .row {
+        flex-direction: column !important;
+        gap: 8px;
+        
+        .col, .col-auto {
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 400px) {
+  .mobile-card-section {
+    padding: 10px !important;
+  }
+  
+  .news-card {
+    .q-img {
+      height: 150px !important;
+    }
+    
+    .news-title {
+      font-size: 0.95rem !important;
+    }
+    
+    .news-description {
+      font-size: 0.8rem !important;
+    }
+  }
+  
+  .mobile-news-meta {
+    font-size: 0.75rem !important;
+    
+    .country-flag {
+      font-size: 1rem !important;
+    }
+  }
+}
+
+// Стили для диалога просмотра новости
+.dialog-news-section {
+  padding: 0 !important;
+}
+
+.dialog-image-wrapper {
+  width: 100%;
+  margin-bottom: 20px;
+  
+  .dialog-news-image {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+// Ограничение размера изображения в диалоге для десктопа
+@media (min-width: 600px) {
+  .dialog-image-wrapper {
+    max-width: 800px;
+    max-height: 450px;
+    margin: 0 auto 20px auto;
+    overflow: hidden;
+    
+    .dialog-news-image {
+      max-height: 450px;
+      object-fit: contain;
+      width: 100%;
+    }
+  }
+}
+
+.dialog-news-content {
+  padding: 20px;
+  
+  .news-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .news-title {
+    font-size: 1.4rem;
+    line-height: 1.5;
+    font-weight: 600;
+    margin-bottom: 16px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .news-description {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .news-content-text {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+// Адаптация диалога просмотра новости для мобильных
+@media (max-width: 599px) {
+  .q-dialog .q-card {
+    margin: 0 !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+  }
+  
+  .dialog-news-content {
+    padding: 16px !important;
+    
+    .news-meta {
+      font-size: 0.875rem;
+      gap: 6px;
+      
+      .country-flag {
+        font-size: 1rem;
+      }
+      
+      .source-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+    }
+    
+    .news-title {
+      font-size: 1.2rem !important;
+      line-height: 1.4 !important;
+      margin-bottom: 12px !important;
+    }
+    
+    .news-description {
+      font-size: 0.95rem !important;
+      line-height: 1.6 !important;
+      margin-bottom: 12px !important;
+    }
+    
+    .news-content-text {
+      font-size: 0.9rem !important;
+      line-height: 1.6 !important;
+    }
+    
+    .q-chip {
+      font-size: 0.8rem !important;
+      height: 28px !important;
+    }
+  }
+}
+
+@media (max-width: 400px) {
+  .dialog-news-content {
+    padding: 12px !important;
+    
+    .news-title {
+      font-size: 1.1rem !important;
+    }
+    
+    .news-description {
+      font-size: 0.9rem !important;
+    }
+    
+    .news-content-text {
+      font-size: 0.85rem !important;
     }
   }
 }

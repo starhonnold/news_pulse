@@ -12,21 +12,21 @@ server:
 services:
   news_parsing:
     name: "News Parsing Service"
-    url: "http://news-parsing-service:8081"
+    url: "http://localhost:8082"
     health_endpoint: "/health"
     timeout: 30s
     retry_attempts: 3
     
   news_management:
     name: "News Management Service"
-    url: "http://news-management-service:8082"
+    url: "http://localhost:8082"
     health_endpoint: "/health"
     timeout: 30s
     retry_attempts: 3
     
   pulse:
     name: "Pulse Service"
-    url: "http://pulse-service:8083"
+    url: "http://localhost:8083"
     health_endpoint: "/health"
     timeout: 30s
     retry_attempts: 3
@@ -87,6 +87,8 @@ cors:
     - "http://localhost:8080"
     - "http://localhost:9000"
     - "http://localhost:9001"
+    - "http://94.198.51.31:3000"
+    - "https://94.198.51.31:3443"
   allowed_methods:
     - "GET"
     - "POST"

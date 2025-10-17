@@ -1,0 +1,21 @@
+# FastText News Classificator Service Dependencies
+
+# NumPy (важно: fasttext-wheel требует <2.0)
+numpy>=1.24.0,<2.0
+
+# FastText (используем готовый wheel)
+fasttext-wheel==0.9.2
+
+# Hugging Face Hub для загрузки модели
+huggingface-hub==0.20.3
+
+# Web framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+
+# Utilities
+python-multipart==0.0.6
+aiofiles==23.2.1
+pyyaml==6.0.1
+

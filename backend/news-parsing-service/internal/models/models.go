@@ -241,27 +241,21 @@ const (
 
 // Константы для категорий (соответствуют данным в БД)
 const (
-	CategoryPolitics   = 1 // Политика
-	CategoryEconomics  = 2 // Экономика
-	CategorySports     = 3 // Спорт
-	CategoryTechnology = 4 // Технологии
-	CategoryCulture    = 5 // Культура
-	CategoryScience    = 6 // Наука
-	CategorySociety    = 7 // Общество
-	CategoryIncidents  = 8 // Происшествия
+	CategorySports     = 1 // Спорт
+	CategoryTechnology = 2 // Технологии
+	CategoryPolitics   = 3 // Политика
+	CategoryEconomics  = 4 // Экономика и финансы
+	CategorySociety    = 5 // Общество
 )
 
 // GetCategoryName возвращает название категории по ID
 func GetCategoryName(id int) string {
 	categories := map[int]string{
-		CategoryPolitics:   "Политика",
-		CategoryEconomics:  "Экономика",
 		CategorySports:     "Спорт",
 		CategoryTechnology: "Технологии",
-		CategoryCulture:    "Культура",
-		CategoryScience:    "Наука",
+		CategoryPolitics:   "Политика",
+		CategoryEconomics:  "Экономика и финансы",
 		CategorySociety:    "Общество",
-		CategoryIncidents:  "Происшествия",
 	}
 
 	if name, exists := categories[id]; exists {

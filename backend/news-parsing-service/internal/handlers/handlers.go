@@ -8,19 +8,23 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"news-parsing-service/internal/models"
+	"news-parsing-service/internal/repository"
 	"news-parsing-service/internal/services"
 )
 
 // Handler представляет HTTP обработчики
 type Handler struct {
-	parsingService *services.ParsingService
-	logger         *logrus.Logger
+	parsingService   *services.ParsingService
+	newsSourceRepo   *repository.NewsSourceRepository
+	logger           *logrus.Logger
 }
 
 // NewHandler создает новый обработчик
-func NewHandler(parsingService *services.ParsingService, logger *logrus.Logger) *Handler {
+func NewHandler(parsingService *services.ParsingService, newsSourceRepo *repository.NewsSourceRepository, logger *logrus.Logger) *Handler {
 	return &Handler{
 		parsingService: parsingService,
+		newsSourceRepo: newsSourceRepo,
 		logger:         logger,
 	}
 }
@@ -58,15 +62,7 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // GetStats возвращает статистику парсинга
 func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.parsingService.GetStats(r.Context())
-	if err != nil {
-		h.logger.WithError(err).Error("Failed to get parsing stats")
-		h.sendResponse(w, http.StatusInternalServerError, Response{
-			Success: false,
-			Error:   "Failed to get statistics",
-		})
-		return
-	}
+	stats := h.parsingService.GetStats()
 
 	h.sendResponse(w, http.StatusOK, Response{
 		Success: true,
@@ -85,9 +81,7 @@ func (h *Handler) ParseAllSources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := h.parsingService.ParseAllSources(r.Context()); err != nil {
-			h.logger.WithError(err).Error("Failed to parse all sources")
-		}
+		h.parsingService.ParseAllSources()
 	}()
 
 	h.sendResponse(w, http.StatusAccepted, Response{
@@ -126,9 +120,13 @@ func (h *Handler) ParseSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := h.parsingService.ParseSource(r.Context(), sourceID); err != nil {
-			h.logger.WithError(err).WithField("source_id", sourceID).Error("Failed to parse source")
+		// Получаем источник по ID
+		source, err := h.newsSourceRepo.GetByID(r.Context(), sourceID)
+		if err != nil {
+			h.logger.WithError(err).WithField("source_id", sourceID).Error("Failed to get source")
+			return
 		}
+		h.parsingService.ParseSource(r.Context(), *source)
 	}()
 
 	h.sendResponse(w, http.StatusAccepted, Response{
@@ -170,7 +168,8 @@ func (h *Handler) ValidateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.parsingService.ValidateSource(r.Context(), requestBody.RSSURL); err != nil {
+	source := models.NewsSource{RSSURL: requestBody.RSSURL}
+	if err := h.parsingService.ValidateSource(source); err != nil {
 		h.sendResponse(w, http.StatusBadRequest, Response{
 			Success: false,
 			Error:   err.Error(),
@@ -330,7 +329,7 @@ func (h *Handler) ExtractContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Извлекаем контент
-	content, err := h.parsingService.ExtractContent(req.URL)
+	content, err := h.parsingService.ExtractContent(r.Context(), req.URL)
 	if err != nil {
 		h.logger.WithError(err).WithField("url", req.URL).Error("Failed to extract content")
 		response := Response{
