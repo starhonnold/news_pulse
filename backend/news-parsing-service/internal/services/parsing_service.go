@@ -54,8 +54,8 @@ func NewParsingService(
 	// Создаем извлекатель контента
 	contentExtractor, err := NewContentExtractor(logger, nil)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create content extractor")
-		return nil
+		logger.WithError(err).Error("Failed to create content extractor, but continuing")
+		contentExtractor = nil
 	}
 
 	// Создаем классификатор новостей с щадящими параметрами
@@ -268,18 +268,34 @@ func (s *ParsingService) ParseSource(ctx context.Context, source models.NewsSour
 		return
 	}
 
-	// Сохраняем новости в базу данных
+	// Сохраняем новости в базу данных пакетом (с защитой от дубликатов)
+	itemsFoundCount := len(items)
+
+	if err := s.newsRepo.CreateBatch(ctx, newsList); err != nil {
+		s.logger.WithFields(logrus.Fields{
+			"source": source.Name,
+			"error":  err,
+		}).Error("Failed to create news batch")
+
+		// Логируем ошибку парсинга
+		parsingLog := models.ParsingLog{
+			SourceID:        source.ID,
+			Status:          "error",
+			ErrorMessage:    err.Error(),
+			ExecutionTimeMs: int(time.Since(startTime).Milliseconds()),
+		}
+		if err := s.parsingLogRepo.Create(ctx, &parsingLog); err != nil {
+			s.logger.WithError(err).Warn("Failed to create parsing log")
+		}
+		return
+	}
+
+	// Подсчитываем сколько новостей было создано (не пропущено как дубликаты)
 	createdCount := 0
 	for _, news := range newsList {
-		if err := s.newsRepo.Create(ctx, &news); err != nil {
-			s.logger.WithFields(logrus.Fields{
-				"source": source.Name,
-				"title":  truncateForLog(news.Title, 50),
-				"error":  err,
-			}).Error("Failed to create news")
-			continue
+		if news.ID > 0 {
+			createdCount++
 		}
-		createdCount++
 	}
 
 	// Логируем результат парсинга
@@ -296,8 +312,8 @@ func (s *ParsingService) ParseSource(ctx context.Context, source models.NewsSour
 
 	s.logger.WithFields(logrus.Fields{
 		"source":        source.Name,
-		"items_found":   len(items),
-		"items_created": parsingLog.NewsCount,
+		"items_found":   itemsFoundCount,
+		"items_created": createdCount,
 		"parse_time":    time.Since(startTime),
 	}).Info("Successfully parsed source")
 }
@@ -349,80 +365,112 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 			contentSource = "rss_description"
 		}
 
-		// ТЕПЕРЬ классифицируем с полным контекстом
+		// СТРОГАЯ ВАЛИДАЦИЯ: требуем заголовок + описание + контент для качественной классификации
+		// Пропускаем новости, которые не соответствуют критериям:
+		// 1. Должен быть заголовок (уже проверено в RSS парсере)
+		// 2. Должно быть описание (не пустое)
+		// 3. Должен быть полный контент (минимум 500 символов)
+
+		if item.Description == "" {
+			s.logger.WithFields(logrus.Fields{
+				"title": truncateForLog(item.Title, 50),
+				"url":   item.Link,
+			}).Debug("Skipping news without description")
+			continue
+		}
+
+		if len(fullContent) < 500 {
+			s.logger.WithFields(logrus.Fields{
+				"title":          truncateForLog(item.Title, 50),
+				"url":            item.Link,
+				"content_length": len(fullContent),
+			}).Debug("Skipping news with insufficient content (< 500 chars)")
+			continue
+		}
+
+		// Проверяем общую длину для дополнительной уверенности
+		totalContentLength := len(item.Description) + len(fullContent)
+		if totalContentLength < 700 {
+			s.logger.WithFields(logrus.Fields{
+				"title":                truncateForLog(item.Title, 50),
+				"url":                  item.Link,
+				"description_length":   len(item.Description),
+				"content_length":       len(fullContent),
+				"total_content_length": totalContentLength,
+			}).Debug("Skipping news with insufficient total content (< 700 chars)")
+			continue
+		}
+
+		// КЛАССИФИКАЦИЯ с полным контекстом
 		var categoryID *int
 
-		// 1) Пробуем FastText - всегда если включен (работает даже на коротких текстах)
+		// 1) FastText классификация с ПОЛНЫМ контентом
 		if s.fastTextClient != nil && s.fastTextClient.IsEnabled() {
-			// Объединяем заголовок + описание + контент для лучшей классификации
-			textForClassification := item.Title
-			if item.Description != "" {
-				textForClassification += ". " + item.Description
-			}
+			// Объединяем заголовок + описание + полный контент
+			// Используем всё доступное для максимальной точности
+			textForClassification := item.Title + ". " + item.Description
+
+			// Добавляем полный контент (если он отличается от описания)
 			if fullContent != "" && fullContent != item.Description {
 				textForClassification += ". " + fullContent
 			}
 
+			// Ограничиваем текст для классификации (FastText может работать медленно на очень длинных текстах)
+			// Берем первые 5000 символов - этого достаточно для точной классификации
+			if len(textForClassification) > 5000 {
+				textForClassification = textForClassification[:5000]
+			}
+
+			// Фиксированный порог confidence 65% - так как теперь всегда есть полный контекст
+			minConfidence := 0.65
+
 			s.logger.WithFields(logrus.Fields{
-				"title":          truncateForLog(item.Title, 50),
-				"content_length": len(fullContent),
-				"total_length":   len(textForClassification),
-			}).Debug("Classifying with FastText")
+				"title":              truncateForLog(item.Title, 50),
+				"description_length": len(item.Description),
+				"content_length":     len(fullContent),
+				"total_length":       len(textForClassification),
+				"min_confidence":     minConfidence,
+			}).Debug("Classifying with FastText (full content)")
 
 			resp, err := s.fastTextClient.Classify(ctx, item.Title, textForClassification)
 
-			if err == nil && resp.CategoryID > 0 && resp.Confidence >= 0.15 {
+			if err == nil && resp.CategoryID > 0 && resp.Confidence >= minConfidence {
 				categoryID = &resp.CategoryID
 				s.logger.WithFields(logrus.Fields{
-					"title":             truncateForLog(item.Title, 50),
-					"category_id":       resp.CategoryID,
-					"category_name":     resp.CategoryName,
-					"confidence":        resp.Confidence,
-					"original_category": resp.OriginalCategory,
-					"content_length":    len(fullContent),
-					"total_length":      len(textForClassification),
-				}).Info("✅ News classified with FastText")
+					"title":              truncateForLog(item.Title, 50),
+					"category_id":        resp.CategoryID,
+					"category_name":      resp.CategoryName,
+					"confidence":         resp.Confidence,
+					"original_category":  resp.OriginalCategory,
+					"description_len":    len(item.Description),
+					"content_len":        len(fullContent),
+					"classification_len": len(textForClassification),
+				}).Info("✅ News classified with FastText (full content)")
 			} else if err != nil {
 				s.logger.WithFields(logrus.Fields{
 					"title": truncateForLog(item.Title, 50),
 					"error": err,
 				}).Warn("FastText classification failed, using fallback")
-			} else if resp.Confidence < 0.15 {
+			} else if resp.Confidence < minConfidence {
 				s.logger.WithFields(logrus.Fields{
-					"title":      truncateForLog(item.Title, 50),
-					"confidence": resp.Confidence,
+					"title":          truncateForLog(item.Title, 50),
+					"confidence":     resp.Confidence,
+					"min_confidence": minConfidence,
+					"reason":         "confidence too low",
 				}).Debug("FastText confidence too low, using fallback")
 			}
 		}
 
-		// 2) Fallback: WeightedClassifier
-		if categoryID == nil && s.simpleNewsClassifier != nil {
-			result := s.simpleNewsClassifier.classify(UnifiedNewsItem{
-				Title:       item.Title,
-				Description: item.Description,
-				Content:     fullContent,
-				URL:         item.Link,
-				Categories:  item.Categories,
-			}, 0)
-
-			if result.CategoryID > 0 {
-				categoryID = &result.CategoryID
-				s.logger.WithFields(logrus.Fields{
-					"title":       truncateForLog(item.Title, 50),
-					"category_id": result.CategoryID,
-					"confidence":  result.Confidence,
-				}).Info("✅ News classified with WeightedClassifier")
-			}
-		}
-
-		// 3) Final fallback
+		// 2) Fallback на "Общество" если FastText не уверен
+		// WeightedClassifier ОТКЛЮЧЕН - он работает хуже FastText
 		if categoryID == nil {
 			fallbackCategory := CatSociety // 5 — Общество
 			categoryID = &fallbackCategory
 			s.logger.WithFields(logrus.Fields{
 				"title":       truncateForLog(item.Title, 50),
 				"fallback_id": fallbackCategory,
-			}).Warn("⚠️ Using fallback category (Общество)")
+				"reason":      "FastText confidence too low or error, using fallback",
+			}).Info("📋 Using fallback category (Общество)")
 		}
 
 		// Детектируем страну
