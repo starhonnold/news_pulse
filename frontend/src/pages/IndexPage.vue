@@ -1,39 +1,44 @@
 <template>
   <q-page class="modern-page">
-    <div class="q-pa-sm q-pa-md-md q-pa-lg-lg">
+    <div class="modern-page-content">
       <!-- Главная страница с пульсами -->
       <div v-if="!selectedPulse">
-        <!-- Если нет пульсов - показываем большую кнопку создания -->
-        <div v-if="userPulses.length === 0" class="flex flex-center" style="min-height: 60vh;">
-          <div class="text-center">
+        <!-- Если нет пульсов - показываем современный empty state -->
+        <div v-if="userPulses.length === 0" class="empty-state-container">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <q-icon name="trending_up" size="80px" class="text-primary modern-empty-icon" />
+            </div>
+            <h2 class="empty-state-title">Добро пожаловать в News Pulse!</h2>
+            <p class="empty-state-description">
+              Создайте свой первый пульс для отслеживания новостей по интересующим вас темам
+            </p>
             <q-btn
               color="primary"
-              size="xl"
-              class="create-pulse-btn gradient-btn white-content"
+              size="lg"
+              class="modern-btn gradient-btn"
               unelevated
-              text-color="white"
+              icon="add_circle_outline"
+              label="Создать первый пульс"
               @click="showCreatePulse = true"
-            >
-              <i class="q-icon notranslate material-icons text-white" aria-hidden="true" role="img" style="color: white !important;">add_circle</i>
-            </q-btn>
-            <div class="text-h6 q-mt-md text-grey-7">
-              Создайте свой первый пульс для отслеживания новостей
-            </div>
+            />
           </div>
         </div>
 
         <!-- Если есть пульсы - показываем список пульсов -->
         <div v-else>
-          <div class="row q-mb-md">
-            <div class="col">
-              <div class="text-subtitle1 text-grey-7">
+          <!-- Заголовок страницы -->
+          <div class="page-header">
+            <div class="page-header-content">
+              <h1 class="page-title">Мои пульсы</h1>
+              <p class="page-subtitle">
                 Выберите пульс для просмотра новостей или создайте новый
-              </div>
+              </p>
             </div>
-            <div class="col-auto">
+            <div class="page-header-actions">
               <q-btn
                 color="primary"
-                icon="add_circle"
+                icon="add_circle_outline"
                 label="Новый пульс"
                 class="modern-btn gradient-btn"
                 unelevated
@@ -42,27 +47,38 @@
             </div>
           </div>
 
-          <div class="row q-gutter-sm q-gutter-md-md">
+          <!-- Сетка пульсов -->
+          <div class="pulses-grid">
             <div 
               v-for="pulse in userPulses" 
               :key="pulse?.id || Math.random()"
-              class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-3"
+              class="pulse-card-wrapper"
             >
               <q-card 
-                class="pulse-card equal-height-card cursor-pointer"
+                class="pulse-card modern-card"
                 @click="selectPulse(pulse)"
               >
-                <q-card-section>
-                  <div class="text-h6 text-weight-medium q-mb-sm">
-                    {{ pulse?.name || 'Без названия' }}
+                <q-card-section class="pulse-card-content">
+                  <div class="pulse-header">
+                    <h3 class="pulse-title">
+                      {{ pulse?.name || 'Без названия' }}
+                    </h3>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      icon="more_horiz"
+                      class="pulse-menu-btn"
+                      @click.stop="showPulseMenu(pulse, $event)"
+                    />
                   </div>
-                  <div class="text-body2 text-grey-7 q-mb-md">
+                  <p class="pulse-description">
                     {{ pulse?.description || 'Без описания' }}
-                  </div>
+                  </p>
                   
                   <!-- Ключевые слова пульса -->
-                  <div v-if="pulse?.keywords" class="q-mb-sm">
-                    <div class="text-caption text-grey-6 q-mb-xs">Ключевые слова:</div>
+                  <div v-if="pulse?.keywords" class="pulse-keywords">
+                    <div class="pulse-section-label">Ключевые слова</div>
                     <div class="keywords-container">
                       <q-chip
                         v-for="keyword in pulse.keywords.split(',').slice(0, 3)"
@@ -70,81 +86,86 @@
                         dense
                         outline
                         color="primary"
-                        class="q-mr-xs q-mb-xs"
+                        class="modern-chip"
                       >
                         {{ keyword.trim() }}
                       </q-chip>
-                      <span v-if="pulse.keywords.split(',').length > 3" class="text-caption text-grey-6">
+                      <span v-if="pulse.keywords.split(',').length > 3" class="more-indicator">
                         +{{ pulse.keywords.split(',').length - 3 }} еще
                       </span>
                     </div>
                   </div>
                   
                   <!-- Категории пульса -->
-                  <div v-if="pulse?.categories && pulse.categories.length > 0" class="q-mb-sm">
-                    <div class="text-caption text-grey-6 q-mb-xs">Категории:</div>
+                  <div v-if="pulse?.categories && pulse.categories.length > 0" class="pulse-categories">
+                    <div class="pulse-section-label">Категории</div>
+                    <div class="categories-container">
                       <q-chip
                         v-for="category in pulse.categories.slice(0, 3)"
-                      :key="category.category_id"
-                      :color="'primary'"
-                      :style="`background-color: ${getCategoryColor(category.category_color)} !important; border-color: ${getCategoryColor(category.category_color)} !important;`"
-                      text-color="white"
-                      dense
-                      class="q-mr-xs"
-                    >
-                      <q-icon :name="getCategoryIcon(category.category_icon || category.category_slug)" class="q-mr-xs" />
-                      {{ category.category_name }}
-                    </q-chip>
-                    <span v-if="pulse.categories.length > 3" class="text-caption text-grey-6">
-                      +{{ pulse.categories.length - 3 }} еще
-                    </span>
+                        :key="category.category_id"
+                        :style="`background-color: ${getCategoryColor(category.category_color)} !important; border-color: ${getCategoryColor(category.category_color)} !important;`"
+                        text-color="white"
+                        dense
+                        class="modern-chip category-chip"
+                      >
+                        <q-icon :name="getCategoryIcon(category.category_icon || category.category_slug)" class="q-mr-xs modern-chip-icon" />
+                        {{ category.category_name }}
+                      </q-chip>
+                      <span v-if="pulse.categories.length > 3" class="more-indicator">
+                        +{{ pulse.categories.length - 3 }} еще
+                      </span>
+                    </div>
                   </div>
 
                   <!-- Страны пульса -->
-                  <div v-if="pulse?.sources && pulse.sources.length > 0" class="q-mb-sm">
-                    <div class="text-caption text-grey-6 q-mb-xs">Страны:</div>
-                    <q-chip
-                      v-for="country in getUniqueCountries(pulse.sources).slice(0, 3)"
-                      :key="country.id"
-                      dense
-                      outline
-                      color="secondary"
-                      class="q-mr-xs"
-                    >
-                      <q-icon name="public" class="q-mr-xs" />
-                      {{ country.name }}
-                    </q-chip>
-                    <span v-if="getUniqueCountries(pulse.sources).length > 3" class="text-caption text-grey-6">
-                      +{{ getUniqueCountries(pulse.sources).length - 3 }} еще
-                    </span>
+                  <div v-if="pulse?.sources && pulse.sources.length > 0" class="pulse-countries">
+                    <div class="pulse-section-label">Страны</div>
+                    <div class="countries-container">
+                      <q-chip
+                        v-for="country in getUniqueCountries(pulse.sources).slice(0, 3)"
+                        :key="country.id"
+                        dense
+                        outline
+                        color="secondary"
+                        class="modern-chip country-chip"
+                      >
+                        <q-icon name="language" class="q-mr-xs modern-chip-icon" />
+                        {{ country.name }}
+                      </q-chip>
+                      <span v-if="getUniqueCountries(pulse.sources).length > 3" class="more-indicator">
+                        +{{ getUniqueCountries(pulse.sources).length - 3 }} еще
+                      </span>
+                    </div>
                   </div>
 
                   <!-- Статистика -->
-                  <div class="row items-center text-caption text-grey-6">
-                    <div class="col">
-                      <q-icon name="article" class="q-mr-xs" />
-                      {{ pulse?.news_count || 0 }} новостей
+                  <div class="pulse-stats">
+                    <div class="stat-item">
+                      <q-icon name="newspaper" class="stat-icon" />
+                      <span class="stat-text">{{ pulse?.news_count || 0 }} новостей</span>
                     </div>
-                    <div class="col-auto">
-                      <q-icon name="schedule" class="q-mr-xs" />
-                      {{ formatDate(pulse?.last_refreshed_at || pulse?.updated_at || pulse?.created_at) }}
+                    <div class="stat-item">
+                      <q-icon name="access_time" class="stat-icon" />
+                      <span class="stat-text">{{ formatDate(pulse?.last_refreshed_at || pulse?.updated_at || pulse?.created_at) }}</span>
                     </div>
                   </div>
                 </q-card-section>
 
-                <q-card-actions class="q-pt-none">
+                <q-card-actions class="pulse-actions">
                   <q-btn 
                     flat 
                     color="primary" 
                     label="Открыть"
+                    class="modern-btn"
                     @click.stop="selectPulse(pulse)"
                   />
                   <q-space />
                   <q-btn 
                     flat 
                     round 
-                    icon="more_vert"
-                    @click.stop
+                    icon="more_horiz"
+                    class="pulse-menu-btn"
+                    @click.stop="showPulseMenu(pulse, $event)"
                   >
                     <q-menu>
                       <q-list>
@@ -1469,54 +1490,318 @@ const isContentCorrupted = (content) => {
 </script>
 
 <style lang="scss" scoped>
-.create-pulse-btn {
-  min-height: 120px;
-  min-width: 120px;
-  border-radius: 50%;
-  font-size: 1.1em;
+// Современный контент страницы
+.modern-page-content {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+// Empty state
+.empty-state-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+}
+
+.empty-state {
+  text-align: center;
+  max-width: 500px;
   
-  // Принудительно применяем белый цвет ко всем элементам
-  &,
-  & * {
+  .empty-state-icon {
+    margin-bottom: 24px;
+    opacity: 0.8;
+  }
+  
+  .modern-empty-icon {
     color: white !important;
+    filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.4)) !important;
+    animation: float 3s ease-in-out infinite !important;
   }
   
-  .q-icon,
-  .material-icons {
-    font-size: 4em;
-    color: white !important;
+  .empty-state-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
   
-  &:hover {
-    transform: translateY(-4px) scale(1.05);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-    
-    &,
-    & * {
-      color: white !important;
-    }
-  }
-  
-  &:focus,
-  &:active,
-  &.q-btn--active {
-    &,
-    & * {
-      color: white !important;
-    }
+  .empty-state-description {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 32px;
   }
 }
 
-// Дополнительный класс для принудительного белого цвета
-.white-content {
-  &,
-  & *,
-  & .q-btn__content,
-  & .q-btn__content *,
-  & .q-icon,
-  & .material-icons,
-  & span {
+// Заголовок страницы
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-primary);
+  
+  .page-header-content {
+    flex: 1;
+  }
+  
+  .page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .page-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+  }
+  
+  .page-header-actions {
+    margin-left: 24px;
+  }
+}
+
+// Сетка пульсов
+.pulses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.pulse-card-wrapper {
+  display: flex;
+}
+
+// Карточка пульса
+.pulse-card {
+  width: 100%;
+  border-radius: 16px !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all 0.3s ease !important;
+  overflow: hidden !important;
+  
+  &:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: var(--shadow-lg) !important;
+    border-color: var(--primary-color) !important;
+  }
+}
+
+.pulse-card-content {
+  padding: 24px !important;
+}
+
+.pulse-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.pulse-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.pulse-menu-btn {
+  color: var(--text-tertiary) !important;
+  margin-left: 8px;
+  
+  &:hover {
+    color: var(--text-secondary) !important;
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+.pulse-description {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+// Секции пульса
+.pulse-keywords,
+.pulse-categories,
+.pulse-countries {
+  margin-bottom: 16px;
+}
+
+.pulse-section-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.keywords-container,
+.categories-container,
+.countries-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.modern-chip {
+  border-radius: 8px !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  
+  &:hover {
+    transform: scale(1.05) !important;
+  }
+  
+  .modern-chip-icon {
     color: white !important;
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3)) !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  &:hover .modern-chip-icon {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5)) !important;
+    transform: scale(1.1) !important;
+  }
+}
+
+.category-chip {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.more-indicator {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+}
+
+// Статистика пульса
+.pulse-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-icon {
+  font-size: 1rem;
+  color: var(--text-tertiary);
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2)) !important;
+  transition: all 0.2s ease !important;
+}
+
+.stat-item:hover .stat-icon {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) !important;
+  transform: scale(1.1) !important;
+}
+
+.stat-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+// Действия пульса
+.pulse-actions {
+  padding: 16px 24px !important;
+  background: var(--bg-secondary) !important;
+  border-top: 1px solid var(--border-primary) !important;
+}
+
+// Адаптивность
+@media (max-width: 1200px) {
+  .pulses-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .modern-page-content {
+    padding: 16px;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    
+    .page-header-actions {
+      margin-left: 0;
+    }
+  }
+  
+  .page-title {
+    font-size: 2rem !important;
+  }
+  
+  .pulses-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .pulse-card-content {
+    padding: 20px !important;
+  }
+  
+  .pulse-actions {
+    padding: 12px 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .modern-page-content {
+    padding: 12px;
+  }
+  
+  .page-title {
+    font-size: 1.75rem !important;
+  }
+  
+  .pulse-card-content {
+    padding: 16px !important;
+  }
+  
+  .pulse-title {
+    font-size: 1.1rem !important;
+  }
+  
+  .pulse-description {
+    font-size: 0.9rem !important;
   }
 }
 

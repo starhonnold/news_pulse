@@ -1,134 +1,237 @@
-// Modern Dark Theme для приложения "Пульс Новостей"
+// Современная дизайн-система для приложения "Пульс Новостей"
+// 2024 Modern UI/UX Design System
 
-// Современная светлая цветовая схема 
 :root {
-  // Основные цвета
-  --primary-color: #6366f1;
-  --primary-dark: #4f46e5;
-  --primary-light: #8b5cf6;
+  // === ОСНОВНАЯ ЦВЕТОВАЯ ПАЛИТРА ===
+  // Современные цвета с улучшенной контрастностью
+  --primary-color: #667eea;
+  --primary-dark: #5a67d8;
+  --primary-light: #7c3aed;
+  --primary-50: #f0f4ff;
+  --primary-100: #e0e7ff;
+  --primary-500: #667eea;
+  --primary-600: #5a67d8;
+  --primary-700: #4c51bf;
+  --primary-900: #2d3748;
   
-  --secondary-color: #10b981;
-  --secondary-dark: #059669;
-  --secondary-light: #34d399;
+  --secondary-color: #06b6d4;
+  --secondary-dark: #0891b2;
+  --secondary-light: #22d3ee;
+  --secondary-50: #ecfeff;
+  --secondary-100: #cffafe;
+  --secondary-500: #06b6d4;
+  --secondary-600: #0891b2;
   
   --accent-color: #f59e0b;
   --accent-dark: #d97706;
   --accent-light: #fbbf24;
+  --accent-50: #fffbeb;
+  --accent-100: #fef3c7;
+  --accent-500: #f59e0b;
   
-  // Статусные цвета
+  // === СТАТУСНЫЕ ЦВЕТА ===
   --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --info-color: #3b82f6;
+  --success-light: #34d399;
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-500: #10b981;
+  --success-600: #059669;
   
-  // Светлая палитра
+  --warning-color: #f59e0b;
+  --warning-light: #fbbf24;
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-500: #f59e0b;
+  
+  --error-color: #ef4444;
+  --error-light: #f87171;
+  --error-50: #fef2f2;
+  --error-100: #fee2e2;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  
+  --info-color: #3b82f6;
+  --info-light: #60a5fa;
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-500: #3b82f6;
+  
+  // === СВЕТЛАЯ ТЕМА ===
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
   --bg-tertiary: #f1f5f9;
+  --bg-quaternary: #e2e8f0;
   --bg-card: #ffffff;
-  --bg-elevated: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-overlay: rgba(255, 255, 255, 0.95);
   
-  // Текст
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
+  // === ТЕКСТОВАЯ ПАЛИТРА ===
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
   --text-tertiary: #64748b;
-  --text-disabled: #94a3b8;
+  --text-quaternary: #94a3b8;
+  --text-disabled: #cbd5e1;
+  --text-inverse: #ffffff;
   
-  // Границы
+  // === ГРАНИЦЫ ===
   --border-primary: #e2e8f0;
   --border-secondary: #cbd5e1;
-  --border-accent: #6366f1;
+  --border-tertiary: #94a3b8;
+  --border-accent: #667eea;
+  --border-focus: #667eea;
   
-  // Тени
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+  // === СОВРЕМЕННЫЕ ТЕНИ ===
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
   
-  // Градиенты
-  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --gradient-secondary: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  // === СОВРЕМЕННЫЕ ГРАДИЕНТЫ ===
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #7c3aed 50%, #06b6d4 100%);
+  --gradient-secondary: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-error: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
   --gradient-light: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  
+  // === РАДИУСЫ СКРУГЛЕНИЯ ===
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+  
+  // === ОТСТУПЫ ===
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+  --spacing-4xl: 40px;
+  --spacing-5xl: 48px;
+  
+  // === ТИПОГРАФИКА ===
+  --font-size-xs: 0.75rem;    // 12px
+  --font-size-sm: 0.875rem;   // 14px
+  --font-size-base: 1rem;     // 16px
+  --font-size-lg: 1.125rem;   // 18px
+  --font-size-xl: 1.25rem;    // 20px
+  --font-size-2xl: 1.5rem;    // 24px
+  --font-size-3xl: 1.875rem;  // 30px
+  --font-size-4xl: 2.25rem;   // 36px
+  
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+  
+  // === АНИМАЦИИ ===
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+  --transition-bounce: 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  // === Z-INDEX ===
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
 }
 
-// Глобальные стили
+// === ГЛОБАЛЬНЫЕ СТИЛИ ===
 * {
   box-sizing: border-box;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Lato', 'Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  
-  // Улучшение читаемости на мобильных
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  line-height: var(--line-height-normal);
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  
-  // Улучшение скроллинга на мобильных
-  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
-// Quasar body override для светлой темы
-.body--light {
-  background: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-// Глобальное переопределение цвета текста для светлой темы
-* {
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Lato', 'Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', sans-serif;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
   color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
 }
 
-// Цвета для Quasar компонентов
-.q-field__native, .q-field__prefix, .q-field__suffix, .q-field__label {
-  color: var(--text-primary) !important;
+// === СОВРЕМЕННЫЕ УТИЛИТЫ ===
+.text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.q-item__label, .q-item-section {
-  color: var(--text-primary) !important;
+.glass-effect {
+  background: var(--bg-overlay);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.q-card-section, .q-toolbar-title {
-  color: var(--text-primary) !important;
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
-.q-chip {
-  color: var(--text-primary) !important;
+.neon-glow {
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+  animation: neonPulse 2s ease-in-out infinite alternate;
 }
 
-// Кастомные утилиты
-.text-truncate {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+@keyframes neonPulse {
+  from {
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+  }
+  to {
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
+  }
 }
 
-.text-truncate-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-}
-
-.text-truncate-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-}
-
-// Современные анимации
+// === СОВРЕМЕННЫЕ АНИМАЦИИ ===
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -162,217 +265,351 @@ html, body {
   }
 }
 
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
   }
-  50% {
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-.fade-in-up {
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
+  }
+}
+
+// === КЛАССЫ АНИМАЦИЙ ===
+.animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out;
 }
 
-.fade-in-scale {
+.animate-fade-in-scale {
   animation: fadeInScale 0.4s ease-out;
 }
 
-.slide-in-right {
+.animate-slide-in-right {
   animation: slideInRight 0.5s ease-out;
 }
 
-// Современный хедер (базовые стили)
-.q-header {
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-primary);
-  box-shadow: var(--shadow-lg);
-  
-  .q-toolbar {
-    min-height: 70px;
-    padding: 0 24px;
-  }
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out;
 }
 
-// Темно-синий хедер
-.dark-blue-header {
-  background: #1e3a8a !important; // Темно-синий цвет
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid #3b82f6 !important;
-  box-shadow: var(--shadow-lg);
+.animate-bounce-in {
+  animation: bounceIn 0.6s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// === СТАГГЕР АНИМАЦИИ ===
+.stagger-animation > * {
+  animation: fadeInUp 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+.stagger-animation > *:nth-child(1) { animation-delay: 0.1s; }
+.stagger-animation > *:nth-child(2) { animation-delay: 0.2s; }
+.stagger-animation > *:nth-child(3) { animation-delay: 0.3s; }
+.stagger-animation > *:nth-child(4) { animation-delay: 0.4s; }
+.stagger-animation > *:nth-child(5) { animation-delay: 0.5s; }
+.stagger-animation > *:nth-child(6) { animation-delay: 0.6s; }
+.stagger-animation > *:nth-child(7) { animation-delay: 0.7s; }
+.stagger-animation > *:nth-child(8) { animation-delay: 0.8s; }
+
+// === БЕЛЫЕ ИКОНКИ ===
+.q-icon {
+  transition: all 0.3s ease !important;
+  color: white !important;
   
-  .q-toolbar {
-    min-height: 70px;
-    padding: 0 24px;
-  }
-  
-  .q-toolbar-title {
-    font-weight: 700;
-    font-size: 1.5rem;
-    color: #ffffff !important; // Белый цвет текста
-    
-    img {
-      height: 32px;
-      width: auto;
-      filter: brightness(0) invert(1); // Делаем логотип белым
-      transition: all 0.3s ease;
-      
-      &:hover {
-        transform: scale(1.1);
-      }
-    }
-    
-    .gradient-text {
-      color: #ffffff !important; // Белый цвет для заголовка
-      background: none !important;
-      -webkit-background-clip: unset !important;
-      -webkit-text-fill-color: #ffffff !important;
-      background-clip: unset !important;
-    }
-    
-    span {
-      color: #ffffff !important;
-    }
-  }
-  
-  .search-input {
-    .q-field__control {
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.1) !important;
-      border: 1px solid rgba(255, 255, 255, 0.2) !important;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        border-color: rgba(255, 255, 255, 0.4) !important;
-        background: rgba(255, 255, 255, 0.15) !important;
-      }
-      
-      &:focus-within {
-        border-color: rgba(255, 255, 255, 0.6) !important;
-        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1) !important;
-      }
-    }
-    
-    .q-field__native {
-      color: #ffffff !important;
-      
-      &::placeholder {
-        color: rgba(255, 255, 255, 0.7) !important;
-      }
-    }
-  }
-  
-  .q-btn {
-    border-radius: 12px;
-    transition: all 0.3s ease;
-    color: #ffffff !important; // Белый цвет для кнопок в хедере
+  // Глобальные эффекты для всех иконок
+  &.icon-glow {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3)) !important;
     
     &:hover {
-      background: rgba(255, 255, 255, 0.1) !important;
-      transform: translateY(-1px);
-    }
-    
-    .q-icon {
-      color: #ffffff !important; // Белый цвет для иконок
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5)) !important;
+      transform: scale(1.1) !important;
     }
   }
   
-  // Белый цвет для всех элементов хедера
-  * {
-    color: #ffffff !important;
+  &.icon-pulse {
+    animation: pulse 2s ease-in-out infinite !important;
   }
   
-  // Специфичное переопределение для заголовка
-  .text-h5.text-weight-bold.gradient-text {
-    color: #ffffff !important;
-    background: none !important;
-    -webkit-background-clip: unset !important;
-    -webkit-text-fill-color: #ffffff !important;
-    background-clip: unset !important;
+  &.icon-float {
+    animation: float 3s ease-in-out infinite !important;
+  }
+  
+  &.icon-glow-animated {
+    animation: glow 2s ease-in-out infinite !important;
   }
 }
 
-// Современный сайдбар
-.q-drawer {
-  background: var(--bg-secondary) !important;
-  border-right: 1px solid var(--border-primary);
+// Специальные стили для кнопок с иконками
+.q-btn .q-icon {
+  transition: all 0.3s ease !important;
+}
+
+.q-btn:hover .q-icon {
+  transform: scale(1.1) !important;
+}
+
+// Убираем синий квадрат при фокусе на полях ввода
+.q-field__control {
+  &:before,
+  &:after {
+    border: none !important;
+  }
   
-  .q-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-primary);
-    border-radius: 16px;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
+  &:focus-within:before,
+  &:focus-within:after {
+    border: none !important;
+  }
+}
+
+.q-field--outlined {
+  .q-field__control {
+    &:before,
+    &:after {
+      border: none !important;
+    }
+  }
+}
+
+// Убираем фокусный эффект у всех кнопок
+.q-btn:before {
+  box-shadow: none !important;
+}
+
+.q-btn--flat:before {
+  background: transparent !important;
+}
+
+// Принудительно белый цвет для текста вкладок
+.q-tabs {
+  .q-tab {
+    color: white !important;
+    
+    .q-tab__content,
+    .q-tab__label,
+    .q-icon {
+      color: white !important;
+    }
+  }
+}
+
+// === QUASAR КОМПОНЕНТЫ ПЕРЕОПРЕДЕЛЕНИЕ ===
+.body--light {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// Глобальное переопределение цвета текста для светлой темы
+* {
+  color: var(--text-primary);
+}
+
+// === СОВРЕМЕННЫЕ КНОПКИ ===
+.q-btn {
+  border-radius: var(--radius-lg) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  text-transform: none !important;
+  transition: all var(--transition-normal) !important;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+  
+  &.q-btn--standard {
+    box-shadow: var(--shadow-sm);
     
     &:hover {
       transform: translateY(-2px);
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-md);
+    }
+    
+    &:active {
+      transform: translateY(0);
     }
   }
   
-  .q-card-section {
-    .text-h6 {
-      color: var(--text-primary);
-      font-weight: 600;
-      font-size: 1.1rem;
+  &.q-btn--unelevated {
+    &.bg-primary {
+      background: var(--gradient-primary) !important;
+      color: var(--text-inverse) !important;
+      
+      &:hover {
+        filter: brightness(1.1);
+        transform: translateY(-2px);
+      }
+    }
+    
+    &.bg-secondary {
+      background: var(--gradient-secondary) !important;
+      color: var(--text-inverse) !important;
+    }
+    
+    &.bg-accent {
+      background: var(--gradient-accent) !important;
+      color: var(--text-inverse) !important;
     }
   }
   
-  // Фильтры стран
-  .country-filters {
-    .q-chip {
-      border-radius: 12px;
-      margin: 4px;
-      transition: all 0.3s ease;
-      border: 1px solid var(--border-primary);
-      
-      &:not(.q-chip--selected) {
-        background: var(--bg-tertiary);
-        color: var(--text-secondary);
-        
-        &:hover {
-          background: var(--bg-elevated);
-          transform: translateY(-1px);
-        }
-      }
-      
-      &.q-chip--selected {
-        background: var(--gradient-primary);
-        color: white;
-        border-color: var(--primary-color);
-        box-shadow: var(--shadow-md);
-      }
+  &.q-btn--outline {
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    background: transparent;
+    
+    &:hover {
+      background: var(--primary-color);
+      color: var(--text-inverse);
     }
   }
   
-  // Фильтры категорий  
-  .category-filters {
-    .q-chip {
-      border-radius: 12px;
-      margin: 4px;
-      transition: all 0.3s ease;
-      border: 1px solid var(--border-primary);
-      
-      &:not(.q-chip--selected) {
-        background: var(--bg-tertiary);
-        color: var(--text-secondary);
-        
-        &:hover {
-          transform: translateY(-1px);
-        }
-      }
+  &.q-btn--round {
+    border-radius: var(--radius-full) !important;
+  }
+  
+  &.q-btn--fab {
+    border-radius: var(--radius-full) !important;
+  box-shadow: var(--shadow-lg);
+  
+    &:hover {
+      box-shadow: var(--shadow-xl);
+      transform: translateY(-2px);
     }
   }
 }
 
-// Современные новостные карточки
-.news-card {
+// === СОВРЕМЕННЫЕ КАРТОЧКИ ===
+.q-card {
   background: var(--bg-card) !important;
   border: 1px solid var(--border-primary) !important;
-  border-radius: 20px !important;
+  border-radius: var(--radius-2xl) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-normal) !important;
   overflow: hidden;
-  transition: all 0.4s ease;
   position: relative;
   
   &::before {
@@ -384,13 +621,333 @@ html, body {
     height: 3px;
     background: var(--gradient-primary);
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--transition-normal);
+  }
+      
+      &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--border-accent);
+    
+    &::before {
+      opacity: 1;
+    }
+  }
+  
+  .q-card-section {
+    padding: var(--spacing-2xl) !important;
+  }
+  
+  .q-card-actions {
+    padding: 0 var(--spacing-2xl) var(--spacing-2xl) var(--spacing-2xl) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ПОЛЯ ВВОДА ===
+.q-field {
+    .q-field__control {
+    border-radius: var(--radius-lg) !important;
+    background: var(--bg-tertiary) !important;
+    border: 2px solid var(--border-primary) !important;
+    transition: all var(--transition-normal) !important;
+    min-height: 48px !important;
+      
+      &:hover {
+      border-color: var(--primary-color) !important;
+      background: var(--bg-elevated) !important;
+      }
+      
+      &:focus-within {
+      border-color: var(--border-focus) !important;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+      background: var(--bg-elevated) !important;
+      }
+    }
+    
+    .q-field__native {
+  color: var(--text-primary) !important;
+    font-size: var(--font-size-base) !important;
+    padding: var(--spacing-md) var(--spacing-lg) !important;
+      
+      &::placeholder {
+      color: var(--text-tertiary) !important;
+    }
+  }
+  
+  .q-field__label {
+    color: var(--text-secondary) !important;
+    font-weight: var(--font-weight-medium) !important;
+  }
+  
+  .q-field__prefix,
+  .q-field__suffix {
+    color: var(--text-tertiary) !important;
+  }
+  
+  &.q-field--outlined {
+    .q-field__control {
+      background: var(--bg-card) !important;
+    }
+  }
+  
+  &.q-field--filled {
+    .q-field__control {
+      background: var(--bg-tertiary) !important;
+      border: none !important;
+      border-bottom: 2px solid var(--border-primary) !important;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+      
+      &:focus-within {
+        border-bottom-color: var(--border-focus) !important;
+        box-shadow: none !important;
+      }
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ ЧИПЫ ===
+.q-chip {
+  border-radius: var(--radius-full) !important;
+  font-weight: var(--font-weight-medium) !important;
+  font-size: var(--font-size-sm) !important;
+  padding: var(--spacing-sm) var(--spacing-lg) !important;
+  transition: all var(--transition-normal) !important;
+  border: 1px solid var(--border-primary) !important;
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+    
+    &:hover {
+      transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  
+  &.q-chip--selected {
+    background: var(--gradient-primary) !important;
+    color: var(--text-inverse) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .q-chip__content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+  
+  .q-icon {
+    font-size: var(--font-size-sm) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ БЭДЖИ ===
+.q-badge {
+  border-radius: var(--radius-full) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  font-size: var(--font-size-xs) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  &.bg-red {
+    background: var(--gradient-error) !important;
+    animation: neonPulse 2s infinite;
+  }
+  
+  &.bg-green {
+    background: var(--gradient-success) !important;
+  }
+  
+  &.bg-blue {
+    background: var(--gradient-primary) !important;
+  }
+  
+  &.bg-orange {
+    background: var(--gradient-warning) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ДИАЛОГИ ===
+.q-dialog {
+  .q-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-3xl) !important;
+    box-shadow: var(--shadow-2xl) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  
+  .q-card-section {
+    .text-h6 {
+  color: var(--text-primary) !important;
+        font-weight: var(--font-weight-bold) !important;
+        font-size: var(--font-size-xl) !important;
+      }
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ МЕНЮ ===
+.q-menu {
+  background: var(--bg-overlay) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-xl) !important;
+  padding: var(--spacing-sm) !important;
+  
+  .q-list {
+    .q-item {
+      border-radius: var(--radius-lg) !important;
+      margin: var(--spacing-xs) 0 !important;
+      transition: all var(--transition-fast) !important;
+        
+        &:hover {
+        background: var(--primary-50) !important;
+        transform: translateX(4px);
+      }
+      
+      .q-item__label {
+        color: var(--text-primary) !important;
+        font-weight: var(--font-weight-medium) !important;
+      }
+      
+      .q-item-section {
+        color: var(--text-secondary) !important;
+      }
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ УВЕДОМЛЕНИЯ ===
+.q-notification {
+  border-radius: var(--radius-xl) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: var(--shadow-xl) !important;
+  padding: var(--spacing-lg) !important;
+}
+
+// === СОВРЕМЕННЫЕ ПРОГРЕСС-БАРЫ ===
+.q-linear-progress {
+  border-radius: var(--radius-full) !important;
+  overflow: hidden;
+  height: 6px !important;
+  
+  .q-linear-progress__track {
+    background: var(--bg-tertiary) !important;
+  }
+  
+  .q-linear-progress__model {
+    background: var(--gradient-primary) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ СПИННЕРЫ ===
+.q-spinner {
+  color: var(--primary-color) !important;
+}
+
+.q-spinner-dots {
+  .q-spinner-dot {
+    background: var(--primary-color) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ТАБЫ ===
+.q-tabs {
+  .q-tab {
+    border-radius: var(--radius-lg) !important;
+    margin: 0 var(--spacing-xs) !important;
+    transition: all var(--transition-normal) !important;
+    font-weight: var(--font-weight-medium) !important;
+    text-transform: none !important;
+        
+        &:hover {
+      background: var(--primary-50) !important;
+    }
+    
+    &.q-tab--active {
+      background: var(--gradient-primary) !important;
+      color: var(--text-inverse) !important;
+      box-shadow: var(--shadow-md);
+    }
+  }
+  
+  .q-tab__indicator {
+    display: none !important; // Скрываем стандартный индикатор
+  }
+}
+
+// === СОВРЕМЕННЫЕ РАЗДЕЛИТЕЛИ ===
+.q-separator {
+  background: var(--border-primary) !important;
+  opacity: 0.6;
+}
+
+// === СОВРЕМЕННЫЕ ТУЛТИПЫ ===
+.q-tooltip {
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  border-radius: var(--radius-md) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: var(--font-weight-medium) !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+// === СОВРЕМЕННЫЕ УТИЛИТЫ ===
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: var(--line-height-normal);
+}
+
+.text-truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: var(--line-height-normal);
+}
+
+// === СОВРЕМЕННЫЕ НОВОСТНЫЕ КАРТОЧКИ ===
+.news-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-2xl) !important;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
   }
   
   &:hover {
     transform: translateY(-8px);
-    box-shadow: var(--shadow-xl);
-    border-color: var(--primary-color);
+    box-shadow: var(--shadow-2xl);
+    border-color: var(--border-accent);
     
     &::before {
       opacity: 1;
@@ -401,54 +958,72 @@ html, body {
     }
   }
   
-  .news-image {
-    transition: transform 0.4s ease;
-    border-radius: 16px;
+  .news-image-wrapper {
+    width: 100%;
     overflow: hidden;
+    position: relative;
+  
+  .news-image {
+      transition: transform var(--transition-slow);
+      border-radius: var(--radius-xl);
+    overflow: hidden;
+    }
   }
   
   .q-card-section {
-    padding: 24px;
+    padding: var(--spacing-2xl) !important;
   }
   
   .news-title {
     color: var(--text-primary);
-    font-weight: 600;
-    font-size: 1.2rem;
-    line-height: 1.4;
-    margin-bottom: 12px;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-md);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   .news-description {
     color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 16px;
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--spacing-lg);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   .news-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
     
     .country-flag {
-      font-size: 1.3em;
+      font-size: var(--font-size-lg);
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
     }
     
     .source-name {
       color: var(--primary-color);
-      font-weight: 600;
-      font-size: 0.95rem;
+      font-weight: var(--font-weight-semibold);
+      font-size: var(--font-size-sm);
     }
     
     .q-separator {
       background: var(--border-secondary);
+      height: 16px;
     }
     
     .publish-time {
       color: var(--text-tertiary);
-      font-size: 0.85rem;
+      font-size: var(--font-size-sm);
     }
   }
   
@@ -457,35 +1032,49 @@ html, body {
       background: var(--bg-tertiary);
       color: var(--text-secondary);
       border: 1px solid var(--border-primary);
-      border-radius: 8px;
-      font-size: 0.8rem;
-      margin-right: 8px;
-      margin-bottom: 4px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      margin-right: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
       
       &:hover {
         background: var(--bg-elevated);
+        transform: translateY(-1px);
       }
     }
   }
   
   .news-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--spacing-lg);
+    
+    .news-action-buttons {
+      display: flex;
+      gap: var(--spacing-xs);
+      
     .q-btn {
-      border-radius: 10px;
-      margin-left: 4px;
-      transition: all 0.3s ease;
+        border-radius: var(--radius-full);
+        padding: var(--spacing-sm);
+        min-width: 40px;
+        min-height: 40px;
+        transition: all var(--transition-fast);
       
       &:hover {
-        background: rgba(99, 102, 241, 0.1);
+          background: var(--primary-50);
         transform: translateY(-1px);
+        }
       }
     }
   }
   
   // Категория чип
   .q-chip {
-    border-radius: 12px;
-    font-weight: 500;
-    font-size: 0.85rem;
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
     
     .q-icon {
       filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
@@ -493,113 +1082,117 @@ html, body {
   }
 }
 
-// Индикаторы новостей
-.news-indicator {
-  .q-badge {
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.75rem;
-    padding: 6px 12px;
-    backdrop-filter: blur(10px);
+// === СОВРЕМЕННЫЕ КАРТОЧКИ ПУЛЬСОВ ===
+.pulse-card {
+  height: 100% !important;
+  min-height: 320px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: all var(--transition-normal) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-2xl) !important;
+  box-shadow: var(--shadow-sm) !important;
+  background: var(--bg-card) !important;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-secondary);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+  
+  &:hover {
+    transform: translateY(-6px) !important;
+    box-shadow: var(--shadow-xl) !important;
+    border-color: var(--border-accent) !important;
     
-    &.bg-red {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      animation: glow 2s infinite;
-    }
-    
-    &.bg-green {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    &::before {
+    opacity: 1;
     }
   }
-}
-
-// Современные кнопки
-.q-btn {
-  border-radius: 12px;
-  font-weight: 600;
-  text-transform: none;
-  transition: all 0.3s ease;
   
-  &.q-btn--standard {
-    box-shadow: var(--shadow-sm);
+  .q-card-section {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: var(--spacing-2xl) !important;
+  }
+  
+  .q-card-actions {
+    margin-top: auto !important;
+    padding: 0 var(--spacing-2xl) var(--spacing-2xl) var(--spacing-2xl) !important;
+  }
+  
+  .text-h6 {
+    font-size: var(--font-size-xl) !important;
+    font-weight: var(--font-weight-bold) !important;
+    color: var(--text-primary) !important;
+    margin-bottom: var(--spacing-sm) !important;
+  }
+  
+  .text-body2 {
+    color: var(--text-secondary) !important;
+    line-height: var(--line-height-relaxed) !important;
+    flex: 1 !important;
+    margin-bottom: var(--spacing-lg) !important;
+  }
+  
+  .keywords-container {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: var(--spacing-xs) !important;
+    margin-bottom: var(--spacing-md) !important;
+  }
+  
+  .q-chip {
+    font-size: var(--font-size-xs) !important;
+    height: 28px !important;
+    border-radius: var(--radius-full) !important;
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+  }
+  
+  .q-btn {
+    border-radius: var(--radius-lg) !important;
+    font-weight: var(--font-weight-medium) !important;
+    text-transform: none !important;
+    transition: all var(--transition-normal) !important;
     
     &:hover {
       transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
-    }
-  }
-  
-  &.q-btn--unelevated.q-btn--rectangle.bg-primary {
-    background: var(--gradient-primary) !important;
-    
-    &:hover {
-      filter: brightness(1.1);
-    }
-  }
-  
-  &.q-btn--unelevated.q-btn--rectangle.bg-secondary {
-    background: var(--gradient-secondary) !important;
-  }
-}
-
-// Современные инпуты
-.q-field {
-  .q-field__control {
-    border-radius: 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    transition: all 0.3s ease;
-    
-    &:hover {
-      border-color: var(--primary-color);
-    }
-    
-    &:focus-within {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-  }
-  
-  .q-field__native {
-    color: var(--text-primary);
-    
-    &::placeholder {
-      color: var(--text-tertiary);
-    }
-  }
-  
-  .q-field__label {
-    color: var(--text-secondary);
-  }
-}
-
-// Диалоги
-.q-dialog {
-  .q-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-primary);
-    border-radius: 20px;
-    box-shadow: var(--shadow-xl);
-    
-    .q-card-section {
-      .text-h6 {
-        color: var(--text-primary);
-        font-weight: 600;
-      }
     }
   }
 }
 
-// Статусная панель
+.equal-height-card {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+// === СОВРЕМЕННЫЕ СТАТУСНЫЕ КАРТОЧКИ ===
 .status-card {
   background: var(--bg-card);
   border: 1px solid var(--border-primary);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  .q-card-section {
+    padding: var(--spacing-lg) !important;
+  }
   
   .q-linear-progress {
-    border-radius: 8px;
+    border-radius: var(--radius-full);
     overflow: hidden;
+    height: 4px !important;
     
     .q-linear-progress__track {
       background: var(--bg-tertiary);
@@ -611,59 +1204,149 @@ html, body {
   }
 }
 
-// Чипы с улучшенным дизайном
-.modern-chip {
-  border-radius: 12px;
-  font-weight: 500;
-  transition: all 0.3s ease;
+// === СОВРЕМЕННЫЕ КАРТОЧКИ ЗАГРУЗКИ ===
+.loading-card {
+  min-width: 300px;
+  max-width: 400px;
+  border-radius: var(--radius-2xl);
+  padding: var(--spacing-3xl);
+  background: var(--bg-card);
   border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  .q-spinner-dots {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ИНДИКАТОРЫ НОВОСТЕЙ ===
+.news-indicator {
+  .q-badge {
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    
+    &.bg-red {
+      background: var(--gradient-error);
+      animation: neonPulse 2s infinite;
+    }
+    
+    &.bg-green {
+      background: var(--gradient-success);
+    }
+    
+    &.bg-blue {
+      background: var(--gradient-primary);
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ ПОЛЯ ВВОДА ===
+.modern-input {
+  .q-field__control {
+    border-radius: var(--radius-lg);
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-primary);
+    transition: all var(--transition-normal);
+    
+    &:hover {
+      border-color: var(--primary-color);
+      background: var(--bg-elevated);
+    }
+    
+    &:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+  }
+  
+  .q-field__native {
+    color: var(--text-primary);
+    
+    &::placeholder {
+      color: var(--text-tertiary);
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ КНОПКИ ===
+.modern-btn {
+  border-radius: var(--radius-lg) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  text-transform: none !important;
+  transition: all var(--transition-normal) !important;
   
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px) !important;
   }
 }
 
-// Загрузка
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
+.gradient-btn {
+  background: var(--gradient-primary) !important;
+  color: var(--text-inverse) !important;
+  border: none !important;
   
-  .q-spinner {
-    color: var(--primary-color);
+  &:hover {
+    filter: brightness(1.1) !important;
+    box-shadow: var(--shadow-lg) !important;
   }
 }
 
-// Пустое состояние
-.empty-state {
-  text-align: center;
-  padding: 80px 20px;
+// === СОВРЕМЕННЫЕ КАРТОЧКИ ===
+.modern-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-md) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.glass-effect {
+  background: var(--bg-overlay) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+// === СОВРЕМЕННЫЕ СТРАНИЦЫ ===
+.modern-page {
+  background: var(--bg-primary) !important;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+// === СОВРЕМЕННЫЕ ЗАГОЛОВКИ ===
+.modern-section-title {
+  color: var(--text-primary) !important;
+  font-weight: var(--font-weight-bold) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-md);
   
-  .empty-icon {
-    font-size: 5rem;
-    color: var(--text-disabled);
-    margin-bottom: 24px;
-    opacity: 0.7;
-  }
-  
-  .empty-title {
-    font-size: 1.5rem;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-    font-weight: 600;
-  }
-  
-  .empty-subtitle {
-    font-size: 1rem;
-    color: var(--text-tertiary);
-    margin-bottom: 32px;
-    line-height: 1.6;
+  &::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
   }
 }
 
-// Скролл бар
+// === СОВРЕМЕННЫЕ ТЕКСТОВЫЕ ГРАДИЕНТЫ ===
+.gradient-text {
+  background: var(--gradient-primary) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+// === СОВРЕМЕННЫЕ СКРОЛЛБАРЫ ===
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -671,27 +1354,265 @@ html, body {
 
 ::-webkit-scrollbar-track {
   background: var(--bg-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-full);
+  transition: background var(--transition-normal);
   
   &:hover {
     background: var(--primary-color);
   }
 }
 
-// Уведомления
-.q-notification {
-  border-radius: 16px;
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-primary);
-  box-shadow: var(--shadow-lg);
+::-webkit-scrollbar-corner {
+  background: var(--bg-tertiary);
 }
 
-// Адаптивность
+// === СОВРЕМЕННЫЕ ПУСТЫЕ СОСТОЯНИЯ ===
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-5xl) var(--spacing-xl);
+  
+  .empty-icon {
+    font-size: 4rem;
+    color: var(--text-disabled);
+    margin-bottom: var(--spacing-2xl);
+    opacity: 0.7;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .empty-title {
+    font-size: var(--font-size-2xl);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    font-weight: var(--font-weight-bold);
+  }
+  
+  .empty-subtitle {
+    font-size: var(--font-size-base);
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-3xl);
+    line-height: var(--line-height-relaxed);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+// === СОВРЕМЕННЫЙ ХЕДЕР ===
+.q-header {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-lg);
+  background: var(--bg-overlay) !important;
+  
+  .q-toolbar {
+    min-height: 70px;
+    padding: 0 var(--spacing-2xl);
+  }
+}
+
+// Темно-синий хедер с современными эффектами
+.dark-blue-header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    pointer-events: none;
+  }
+  
+  .q-toolbar {
+    min-height: 70px;
+    padding: 0 var(--spacing-2xl);
+    position: relative;
+    z-index: 1;
+  }
+  
+  .q-toolbar-title {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl);
+    color: var(--text-inverse) !important;
+    
+    img {
+      height: 36px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      transition: all var(--transition-normal);
+  
+  &:hover {
+        transform: scale(1.1);
+        filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+      }
+    }
+    
+    .gradient-text {
+      color: var(--text-inverse) !important;
+      background: none !important;
+      -webkit-background-clip: unset !important;
+      -webkit-text-fill-color: var(--text-inverse) !important;
+      background-clip: unset !important;
+    }
+    
+    span {
+      color: var(--text-inverse) !important;
+    }
+  }
+  
+  .search-input {
+    .q-field__control {
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.1) !important;
+      border: 2px solid rgba(255, 255, 255, 0.2) !important;
+      transition: all var(--transition-normal);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      
+      &:hover {
+        border-color: rgba(255, 255, 255, 0.4) !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+      }
+      
+      &:focus-within {
+        border-color: rgba(255, 255, 255, 0.6) !important;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1) !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+      }
+    }
+    
+    .q-field__native {
+      color: var(--text-inverse) !important;
+      padding: var(--spacing-md) var(--spacing-lg) !important;
+      
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.7) !important;
+      }
+    }
+    
+    .q-field__prefix,
+    .q-field__suffix {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+  }
+  
+  .q-btn {
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-normal);
+    color: var(--text-inverse) !important;
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      
+      &::before {
+        left: 100%;
+      }
+    }
+    
+    .q-icon {
+      color: var(--text-inverse) !important;
+    }
+  }
+  
+  // Белый цвет для всех элементов хедера
+  * {
+    color: var(--text-inverse) !important;
+  }
+  
+  // Специфичное переопределение для заголовка
+  .text-h5.text-weight-bold.gradient-text {
+    color: var(--text-inverse) !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--text-inverse) !important;
+    background-clip: unset !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ТАБЫ В ХЕДЕРЕ ===
+.q-tabs {
+  .q-tab {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-weight: var(--font-weight-medium) !important;
+    text-transform: none !important;
+    font-size: var(--font-size-base) !important;
+    border-radius: var(--radius-lg);
+    margin: 0 var(--spacing-xs);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.5s;
+    }
+    
+    &:hover {
+      color: rgba(255, 255, 255, 0.9) !important;
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-1px);
+      
+      &::before {
+        left: 100%;
+      }
+    }
+    
+    &.q-tab--active {
+      color: var(--text-inverse) !important;
+      font-weight: var(--font-weight-semibold) !important;
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow: var(--shadow-md);
+    }
+  }
+  
+  .q-tab__indicator {
+    background: var(--text-inverse) !important;
+    height: 3px !important;
+    border-radius: var(--radius-full) !important;
+  }
+}
+
+// Стили для иконок вкладок
+.q-tab .q-icon {
+  font-size: var(--font-size-lg) !important;
+  margin-right: var(--spacing-sm) !important;
+}
+
+// === АДАПТИВНЫЕ СТИЛИ ===
 
 // Десктопные стили для изображений новостей
 @media (min-width: 600px) {
@@ -728,14 +1649,14 @@ html, body {
 
 @media (max-width: 1023px) {
   .q-header .q-toolbar {
-    padding: 0 16px;
+    padding: 0 var(--spacing-lg);
   }
   
   .news-card {
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     
     .q-card-section {
-      padding: 20px;
+      padding: var(--spacing-xl) !important;
     }
     
     &:hover {
@@ -747,11 +1668,11 @@ html, body {
 @media (max-width: 599px) {
   // Улучшение читаемости текста на мобильных
   body {
-    font-size: 16px !important; // Минимальный размер для читаемости
-    line-height: 1.5 !important;
+    font-size: var(--font-size-base) !important;
+    line-height: var(--line-height-normal) !important;
   }
   
-  // Минимальные размеры для кликабельных элементов (44px - рекомендация Apple/Google)
+  // Минимальные размеры для кликабельных элементов
   .q-btn,
   .q-chip,
   .q-tab,
@@ -759,7 +1680,7 @@ html, body {
   a {
     min-height: 44px;
     min-width: 44px;
-    touch-action: manipulation; // Улучшение отклика на касания
+    touch-action: manipulation;
   }
   
   // Увеличение контрастности текста
@@ -769,20 +1690,20 @@ html, body {
   }
   
   .text-caption {
-    font-size: 0.8rem !important;
-    line-height: 1.4 !important;
+    font-size: var(--font-size-sm) !important;
+    line-height: var(--line-height-snug) !important;
   }
   
   .text-body1,
   .text-body2 {
-    font-size: 0.95rem !important;
-    line-height: 1.6 !important;
+    font-size: var(--font-size-sm) !important;
+    line-height: var(--line-height-normal) !important;
   }
   
   // Хедер
   .q-header {
     .q-toolbar {
-      padding: 0 8px !important;
+      padding: 0 var(--spacing-sm) !important;
       min-height: 56px !important;
     }
     
@@ -793,27 +1714,27 @@ html, body {
   
   // Основной контент
   .q-page {
-    padding: 12px 8px !important;
+    padding: var(--spacing-md) var(--spacing-sm) !important;
   }
   
   .q-pa-sm {
-    padding: 8px !important;
+    padding: var(--spacing-sm) !important;
   }
   
   .q-pa-md {
-    padding: 12px !important;
+    padding: var(--spacing-md) !important;
   }
   
   // Карточки новостей
   .news-card {
-    margin-bottom: 16px !important;
-    border-radius: 16px !important;
+    margin-bottom: var(--spacing-lg) !important;
+    border-radius: var(--radius-xl) !important;
     overflow: hidden !important;
-    display: block !important; // Переопределяем flex для мобильных
+    display: block !important;
     flex-direction: column !important;
     
     .q-card-section {
-      padding: 16px !important;
+      padding: var(--spacing-lg) !important;
     }
     
     .news-image-wrapper {
@@ -827,80 +1748,80 @@ html, body {
     }
     
     .news-title {
-      font-size: 1.1rem !important;
-      line-height: 1.5 !important;
-      font-weight: 600 !important;
+      font-size: var(--font-size-lg) !important;
+      line-height: var(--line-height-tight) !important;
+      font-weight: var(--font-weight-bold) !important;
       word-break: break-word;
       overflow-wrap: break-word;
     }
     
     .news-description {
-      font-size: 0.95rem !important;
-      line-height: 1.6 !important;
+      font-size: var(--font-size-sm) !important;
+      line-height: var(--line-height-normal) !important;
       word-break: break-word;
       overflow-wrap: break-word;
     }
     
     // Метаданные
     .news-meta {
-      font-size: 0.875rem !important;
+      font-size: var(--font-size-sm) !important;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: var(--spacing-sm);
       
       .country-flag {
-        font-size: 1rem !important;
+        font-size: var(--font-size-base) !important;
       }
       
       .source-name {
-        font-size: 0.9rem !important;
-        font-weight: 600 !important;
+        font-size: var(--font-size-sm) !important;
+        font-weight: var(--font-weight-semibold) !important;
       }
     }
     
     // Чипы категорий
     .q-chip {
-      font-size: 0.8rem !important;
+      font-size: var(--font-size-xs) !important;
       height: 28px !important;
-      margin: 2px !important;
+      margin: var(--spacing-xs) !important;
     }
   }
   
   // Сайдбар/Drawer
   .q-drawer {
     .q-card {
-      border-radius: 12px;
+      border-radius: var(--radius-lg);
       
       .q-card-section {
-        padding: 12px !important;
+        padding: var(--spacing-md) !important;
       }
     }
   }
   
   // Заголовки
   .text-h4 {
-    font-size: 1.5rem !important;
+    font-size: var(--font-size-2xl) !important;
   }
   
   .text-h5 {
-    font-size: 1.25rem !important;
+    font-size: var(--font-size-xl) !important;
   }
   
   .text-h6 {
-    font-size: 1.1rem !important;
+    font-size: var(--font-size-lg) !important;
   }
   
   // Кнопки
   .q-btn {
-    padding: 8px 12px !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
     
     &.q-btn--dense {
-      padding: 4px 8px !important;
+      padding: var(--spacing-xs) var(--spacing-sm) !important;
     }
   }
   
   // Формы и инпуты
   .q-field {
-    margin-bottom: 12px !important;
+    margin-bottom: var(--spacing-md) !important;
     
     .q-field__control {
       min-height: 40px !important;
@@ -910,11 +1831,11 @@ html, body {
   // Диалоги
   .q-dialog {
     .q-card {
-      margin: 8px !important;
-      max-width: calc(100% - 16px) !important;
+      margin: var(--spacing-sm) !important;
+      max-width: calc(100% - var(--spacing-lg)) !important;
       
       .q-card-section {
-        padding: 12px !important;
+        padding: var(--spacing-md) !important;
       }
     }
   }
@@ -922,20 +1843,20 @@ html, body {
   // Статистические карточки
   .status-card {
     .q-card-section {
-      padding: 12px !important;
+      padding: var(--spacing-md) !important;
       
       .text-caption {
-        font-size: 0.75rem !important;
+        font-size: var(--font-size-xs) !important;
       }
     }
   }
   
   // Фильтры
   .modern-card {
-    border-radius: 12px !important;
+    border-radius: var(--radius-lg) !important;
     
     .q-card-section {
-      padding: 12px !important;
+      padding: var(--spacing-md) !important;
     }
   }
 }
@@ -943,53 +1864,53 @@ html, body {
 @media (max-width: 400px) {
   // Еще более компактный режим
   .q-header .q-toolbar {
-    padding: 0 4px !important;
+    padding: 0 var(--spacing-xs) !important;
     min-height: 52px !important;
   }
   
   .q-page {
-    padding: 8px 4px !important;
+    padding: var(--spacing-sm) var(--spacing-xs) !important;
   }
   
   .news-card {
     .q-card-section {
-      padding: 12px !important;
+      padding: var(--spacing-md) !important;
     }
     
     .news-title {
-      font-size: 1rem !important;
+      font-size: var(--font-size-base) !important;
     }
     
     .news-description {
-      font-size: 0.9rem !important;
+      font-size: var(--font-size-sm) !important;
     }
     
     .news-meta {
-      font-size: 0.8rem !important;
+      font-size: var(--font-size-xs) !important;
       
       .source-name {
-        font-size: 0.85rem !important;
+        font-size: var(--font-size-xs) !important;
       }
     }
     
     .q-chip {
-      font-size: 0.75rem !important;
+      font-size: var(--font-size-xs) !important;
       height: 24px !important;
-      padding: 3px 8px !important;
+      padding: var(--spacing-xs) var(--spacing-sm) !important;
     }
   }
   
   .text-h5 {
-    font-size: 1.1rem !important;
+    font-size: var(--font-size-lg) !important;
   }
   
   .text-h6 {
-    font-size: 1rem !important;
+    font-size: var(--font-size-base) !important;
   }
   
   .q-btn {
-    padding: 6px 10px !important;
-    font-size: 0.85rem !important;
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+    font-size: var(--font-size-sm) !important;
   }
 }
 
@@ -1029,7 +1950,7 @@ html, body {
   // Увеличение интервалов между кликабельными элементами
   .news-actions .q-btn,
   .news-action-buttons .q-btn {
-    margin: 4px !important;
+    margin: var(--spacing-xs) !important;
   }
   
   // Улучшение видимости разделителей
@@ -1052,7 +1973,7 @@ html, body {
   // Улучшение читаемости бэджей и чипов
   .q-badge,
   .q-chip {
-    font-weight: 600 !important;
+    font-weight: var(--font-weight-semibold) !important;
     letter-spacing: 0.3px !important;
   }
   
@@ -1070,78 +1991,143 @@ html, body {
   }
 }
 
-// Специальные эффекты для светлой темы
-.glass-effect {
-  background: rgba(248, 250, 252, 0.8) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+// === СПЕЦИАЛЬНЫЕ ЭФФЕКТЫ ===
+.create-pulse-btn {
+  min-height: 120px;
+  min-width: 120px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-lg);
+  background: var(--gradient-primary) !important;
+  color: var(--text-inverse) !important;
+  border: none !important;
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition-normal);
+  
+  &:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: var(--shadow-2xl);
+    filter: brightness(1.1);
+  }
+  
+  .q-icon,
+  .material-icons {
+    font-size: 4em;
+    color: var(--text-inverse) !important;
+  }
 }
 
-.modern-page {
-  background: var(--bg-primary) !important;
-  min-height: 100vh;
+// Дополнительный класс для принудительного белого цвета
+.white-content {
+  &,
+  & *,
+  & .q-btn__content,
+  & .q-btn__content *,
+  & .q-icon,
+  & .material-icons,
+  & span {
+    color: var(--text-inverse) !important;
+  }
 }
 
-.modern-drawer {
+// === ПЕРЕОПРЕДЕЛЕНИЕ ДЛЯ ТЕМНО-СИНЕГО ХЕДЕРА ===
+.dark-blue-header .gradient-text {
+  color: var(--text-inverse) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--text-inverse) !important;
+  background-clip: unset !important;
+}
+
+// === АНИМАЦИЯ ПОЯВЛЕНИЯ ЭЛЕМЕНТОВ ===
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.4s ease-out;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.5s ease-out;
+}
+
+// === СОВРЕМЕННЫЕ САЙДБАРЫ ===
+.q-drawer {
   background: var(--bg-secondary) !important;
-  border-right: 1px solid var(--border-primary) !important;
-}
-
-.modern-card {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-primary) !important;
-  border-radius: 16px !important;
-  box-shadow: var(--shadow-md) !important;
-}
-
-.modern-input {
-  .q-field__control {
-    background: var(--bg-tertiary) !important;
-    border: 1px solid var(--border-primary) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--shadow-sm) !important;
-    
-    &:hover {
-      border-color: var(--primary-color) !important;
-      box-shadow: var(--shadow-md) !important;
+  border-right: 1px solid var(--border-primary);
+  
+  .q-card {
+    background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+      
+      &:hover {
+      transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
     }
   }
   
-  .q-field__native {
-    color: var(--text-primary) !important;
+  .q-card-section {
+    .text-h6 {
+      color: var(--text-primary);
+      font-weight: var(--font-weight-semibold);
+      font-size: var(--font-size-lg);
+    }
   }
   
-  .q-field__native::placeholder {
-    color: var(--text-tertiary) !important;
-  }
-}
-
-.modern-btn {
-  border-radius: 12px !important;
-  font-weight: 600 !important;
-  text-transform: none !important;
-  transition: all 0.3s ease !important;
-  
-  &:hover {
-    transform: translateY(-1px) !important;
-  }
-}
-
-.gradient-btn {
-  background: var(--gradient-primary) !important;
-  color: white !important;
+  // Фильтры стран
+  .country-filters {
+    .q-chip {
+      border-radius: var(--radius-full);
+      margin: var(--spacing-xs);
+      transition: all var(--transition-normal);
+      border: 1px solid var(--border-primary);
+      
+      &:not(.q-chip--selected) {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
   
   &:hover {
-    filter: brightness(1.1) !important;
+          background: var(--bg-elevated);
+        transform: translateY(-1px);
+        }
+      }
+      
+      &.q-chip--selected {
+        background: var(--gradient-primary);
+        color: var(--text-inverse);
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+      }
+    }
+  }
+  
+  // Фильтры категорий  
+  .category-filters {
+  .q-chip {
+      border-radius: var(--radius-full);
+      margin: var(--spacing-xs);
+      transition: all var(--transition-normal);
+      border: 1px solid var(--border-primary);
+      
+      &:not(.q-chip--selected) {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+  
+  &:hover {
+          transform: translateY(-1px);
+        }
+      }
+    }
   }
 }
 
-.gradient-text {
-  background: var(--gradient-primary) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
-}
+// === ЗАВЕРШЕНИЕ ДИЗАЙН-СИСТЕМЫ ===
+
+// === ДИЗАЙН-СИСТЕМА ЗАВЕРШЕНА ===
+// Все современные стили применены к компонентам
 
 // Переопределение для темно-синего хедера
 .dark-blue-header .gradient-text {
