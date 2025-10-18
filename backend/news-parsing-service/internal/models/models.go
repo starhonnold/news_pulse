@@ -179,10 +179,17 @@ type NewsFilter struct {
 
 // IsValid проверяет валидность новости
 func (n *News) IsValid() bool {
-	return len(n.Title) >= 10 && len(n.Title) <= 500 &&
-		n.URL != "" &&
-		n.SourceID > 0 &&
-		!n.PublishedAt.IsZero()
+	// Проверяем базовые поля
+	if len(n.Title) < 10 || len(n.Title) > 500 ||
+		n.URL == "" ||
+		n.SourceID <= 0 ||
+		n.PublishedAt.IsZero() {
+		return false
+	}
+
+	// Проверяем что есть достаточно контента (description + content >= 300 символов)
+	totalContentLength := len(n.Description) + len(n.Content)
+	return totalContentLength >= 300
 }
 
 // IsValid проверяет валидность источника новостей

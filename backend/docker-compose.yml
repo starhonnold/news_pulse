@@ -1,3 +1,6 @@
+# News Pulse - Docker Compose Configuration
+# Микросервисная архитектура новостного агрегатора
+
 services:
   # API Gateway - центральный шлюз для всех запросов
   api-gateway:
@@ -36,36 +39,6 @@ services:
     #   start_period: 60s
     volumes:
       - gateway_logs:/var/log
-
-  # AI Model Service - сервис AI классификации
-  ai-model-service:
-    build:
-      context: ./ai-model-service
-      dockerfile: Dockerfile
-    container_name: news_pulse_ai_model_service
-    restart: unless-stopped
-    ports:
-      - "${AI_MODEL_SERVICE_PORT:-8001}:8001"
-    environment:
-      - HOST=0.0.0.0
-      - PORT=8001
-      - MODEL_NAME=IlyaGusev/mbart_ru_sum_gazeta
-    volumes:
-      - ai_models:/app/models
-    networks:
-      - news_pulse_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
 
   # Notification Service - сервис уведомлений
   notification-service:
@@ -124,16 +97,11 @@ services:
       - RSS_PARSE_INTERVAL_MINUTES=${RSS_PARSE_INTERVAL_MINUTES:-10}
       - RSS_MAX_CONCURRENT_PARSERS=${RSS_MAX_CONCURRENT_PARSERS:-5}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - GOOGLE_AI_API_KEY=AIzaSyCjdX3fkQFnTa2viTxb4rSUNBFfHZwdG6E
       - PROXY_ENABLED=${PROXY_ENABLED:-false}
-      - PROXY_URL=${PROXY_URL:-http://195.96.157.223:9765}
-      - PROXY_USERNAME=${PROXY_USERNAME:-user322683}
-      - PROXY_PASSWORD=${PROXY_PASSWORD:-97fgob}
-      - OLLAMA_URL=http://ollama:11434
-      # AI Configuration (DEPRECATED)
-      - AI_ENABLED=false
-      # FastText Configuration (Используется с полным контентом)
+      - PROXY_URL=${PROXY_URL}
+      - PROXY_USERNAME=${PROXY_USERNAME}
+      - PROXY_PASSWORD=${PROXY_PASSWORD}
+      # FastText Configuration
       - FASTTEXT_ENABLED=true
       - FASTTEXT_SERVICE_URL=http://news-classificator-service:8085
       - FASTTEXT_TIMEOUT_SECONDS=30
@@ -141,7 +109,7 @@ services:
       - FASTTEXT_USE_FALLBACK=true
     depends_on:
       - postgres
-      - news-classificator-service  # NEW: FastText классификатор
+      - news-classificator-service
     networks:
       - news_pulse_network
     # healthcheck:
@@ -224,30 +192,7 @@ services:
     volumes:
       - pulse_logs:/var/log
 
-  # Ollama AI сервис для классификации новостей (DEPRECATED - используйте news-classificator-service)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: news_pulse_ollama
-    restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_ORIGINS=*
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - news_pulse_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    profiles:
-      - deprecated  # Сервис отключен по умолчанию (запустите с --profile deprecated)
-
-  # FastText News Classifier - новый сервис классификации новостей (NEW)
+  # FastText News Classifier - сервис классификации новостей
   news-classificator-service:
     build:
       context: ./news-classificator-service
@@ -343,9 +288,6 @@ volumes:
   postgres_data:
     driver: local
     name: news_pulse_postgres_data
-  ollama_data:
-    driver: local
-    name: news_pulse_ollama_data
   parsing_logs:
     driver: local
     name: news_pulse_parsing_logs
@@ -366,9 +308,6 @@ volumes:
   fasttext_logs:
     driver: local
     name: news_pulse_fasttext_logs
-  ai_models:
-    driver: local
-    name: news_pulse_ai_models
 
 networks:
   news_pulse_network:
