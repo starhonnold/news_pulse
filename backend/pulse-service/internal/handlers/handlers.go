@@ -466,7 +466,28 @@ func (h *Handler) GetPulseNews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Если новостей нет, возвращаем пустой массив
+	// Если новостей нет, автоматически собираем их
+	if len(news) == 0 {
+		h.logger.WithField("pulse_id", pulseID).Info("No news found for pulse, collecting news automatically")
+
+		// Создаем контекст с таймаутом для сбора новостей
+		collectCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		// Собираем новости для пульса
+		err := h.pulseService.CollectPulseNews(collectCtx, pulseID)
+		if err != nil {
+			h.logger.WithError(err).WithField("pulse_id", pulseID).Warn("Failed to collect pulse news automatically")
+		} else {
+			// Пытаемся получить новости снова после сбора
+			news, err = h.getPulseNewsFromDB(r.Context(), pulseID, limit)
+			if err != nil {
+				h.logger.WithError(err).WithField("pulse_id", pulseID).Warn("Failed to get pulse news after collection")
+			}
+		}
+	}
+
+	// Если новостей все еще нет, возвращаем пустой массив
 	if len(news) == 0 {
 		h.sendResponse(w, http.StatusOK, Response{
 			Success: true,
@@ -843,13 +864,14 @@ func (h *Handler) getPulseNewsFromDB(ctx context.Context, pulseID string, limit 
 	for rows.Next() {
 		var news models.PersonalizedNews
 		var categoryName, categorySlug, categoryColor sql.NullString
+		var imageURL, author sql.NullString
 		var matchReason string
 		var pulseRelevanceScore float64
 		var tags []string
 
 		err := rows.Scan(
 			&news.ID, &news.Title, &news.Description, &news.Content, &news.URL,
-			&news.ImageURL, &news.Author, &news.SourceID, &news.CategoryID,
+			&imageURL, &author, &news.SourceID, &news.CategoryID,
 			&news.PublishedAt, &news.RelevanceScore, &news.ViewCount,
 			&news.SourceName, &news.SourceDomain, &news.SourceLogoURL,
 			&categoryName, &categorySlug, &categoryColor, &news.CategoryIcon,
@@ -858,6 +880,14 @@ func (h *Handler) getPulseNewsFromDB(ctx context.Context, pulseID string, limit 
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan pulse news: %w", err)
+		}
+
+		// Заполняем опциональные поля
+		if imageURL.Valid {
+			news.ImageURL = imageURL.String
+		}
+		if author.Valid {
+			news.Author = author.String
 		}
 
 		// Заполняем категорию если есть

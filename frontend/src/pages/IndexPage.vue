@@ -105,11 +105,11 @@
               <div class="meta-chips">
                 <q-chip size="xs" color="primary" text-color="white">
                   <q-icon name="public" size="8px" class="q-mr-xs" />
-                  {{ pulse.countries?.length || 0 }}
+                  {{ getUniqueCountriesCount(pulse) }}
                 </q-chip>
                 <q-chip size="xs" color="secondary" text-color="white">
                   <q-icon name="category" size="8px" class="q-mr-xs" />
-                  {{ pulse.categories?.length || 0 }}
+                  {{ getCategoriesCount(pulse) }}
                 </q-chip>
                           </div>
               <div class="keyword-chips" v-if="pulse.keywords">
@@ -380,40 +380,26 @@ const editPulse = (pulse) => {
 }
 
 const deletePulse = async (pulse) => {
-  $q.dialog({
-    title: 'Подтверждение удаления',
-    message: `Вы уверены, что хотите удалить пульс "${pulse.name}"?`,
-    persistent: true,
-    ok: {
-      label: 'Удалить',
-      color: 'negative'
-    },
-    cancel: {
-      label: 'Отмена',
-      color: 'grey'
-    }
-  }).onOk(async () => {
+  // Используем стандартный confirm для совместимости
+  const confirmed = confirm(`Вы уверены, что хотите удалить пульс "${pulse.name}"?`)
+  
+  if (confirmed) {
     try {
       const response = await pulseService.deletePulse(pulse.id)
       
-            if (response.data && response.data.success) {
-              pulses.value = pulses.value.filter(p => p.id !== pulse.id)
-              filteredPulses.value = filteredPulses.value.filter(p => p.id !== pulse.id)
-              $q.notify({
-                message: 'Пульс удален',
-                type: 'positive',
-                position: 'bottom'
-              })
-            }
+      if (response.data && response.data.success) {
+        pulses.value = pulses.value.filter(p => p.id !== pulse.id)
+        filteredPulses.value = filteredPulses.value.filter(p => p.id !== pulse.id)
+        
+        // Используем console.log вместо $q.notify для совместимости
+        console.log('Пульс удален успешно')
+        alert('Пульс удален успешно')
+      }
     } catch (error) {
       console.error('Ошибка удаления пульса:', error)
-      $q.notify({
-        message: 'Не удалось удалить пульс',
-        type: 'negative',
-        position: 'bottom'
-      })
+      alert('Не удалось удалить пульс: ' + error.message)
     }
-  })
+  }
 }
 
 // Методы управления пульсами (из оригинального файла)
@@ -671,6 +657,35 @@ const editPulseById = async (pulseId) => {
       position: 'bottom'
     })
   }
+}
+
+// Функции для подсчета статистики пульса
+const getUniqueCountriesCount = (pulse) => {
+  if (!pulse) return 0
+  
+  // Получаем уникальные страны из источников пульса
+  if (pulse.sources && Array.isArray(pulse.sources)) {
+    const countries = new Set()
+    pulse.sources.forEach(source => {
+      if (source.country_id) {
+        countries.add(source.country_id)
+      }
+    })
+    return countries.size
+  }
+  
+  return 0
+}
+
+const getCategoriesCount = (pulse) => {
+  if (!pulse) return 0
+  
+  // Получаем количество категорий из настроек пульса
+  if (pulse.categories && Array.isArray(pulse.categories)) {
+    return pulse.categories.length
+  }
+  
+  return 0
 }
 
 onMounted(async () => {

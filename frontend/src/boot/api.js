@@ -63,6 +63,15 @@ const createRequest = (config) => {
   // Добавляем signal в конфиг
   config.signal = controller.signal
   
+  // Добавляем заголовки по умолчанию
+  if (!config.headers) {
+    config.headers = {}
+  }
+  
+  // Добавляем User ID для pulse-service
+  const userId = localStorage.getItem('user_id') || '00000000-0000-0000-0000-000000000001'
+  config.headers['X-User-ID'] = userId
+  
   // Очищаем из map после завершения запроса
   const cleanup = () => {
     activeRequests.delete(requestKey)
@@ -79,6 +88,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // Добавляем User ID для pulse-service
+    // В реальном приложении это должно извлекаться из JWT токена
+    const userId = localStorage.getItem('user_id') || '00000000-0000-0000-0000-000000000001'
+    config.headers['X-User-ID'] = userId
+    
     return config
   },
   (error) => {

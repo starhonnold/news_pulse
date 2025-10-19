@@ -572,7 +572,7 @@ func (s *PulseService) CollectPulseNews(ctx context.Context, pulseID string) err
 		contentPlaceholder := fmt.Sprintf("$%d", argIndex)
 		titlePlaceholder := fmt.Sprintf("$%d", argIndex+1)
 		descPlaceholder := fmt.Sprintf("$%d", argIndex+2)
-		keywordConditions[i] = fmt.Sprintf("(LOWER(n.content) LIKE %s OR LOWER(n.title) LIKE %s OR LOWER(n.description) LIKE %s)", contentPlaceholder, titlePlaceholder, descPlaceholder)
+		keywordConditions[i] = fmt.Sprintf("(n.content ILIKE %s OR n.title ILIKE %s OR n.description ILIKE %s)", contentPlaceholder, titlePlaceholder, descPlaceholder)
 		argIndex += 3 // Каждое ключевое слово использует 3 плейсхолдера
 	}
 
@@ -616,7 +616,7 @@ func (s *PulseService) CollectPulseNews(ctx context.Context, pulseID string) err
 
 	// Добавляем ключевые слова в параметры (для контента, заголовка и описания)
 	for _, keyword := range keywords {
-		keywordPattern := "%" + strings.ToLower(keyword) + "%"
+		keywordPattern := "%" + keyword + "%"
 		args = append(args, keywordPattern, keywordPattern, keywordPattern)
 	}
 
