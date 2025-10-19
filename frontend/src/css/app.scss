@@ -160,6 +160,28 @@
   --z-toast: 1080;
 }
 
+// === ПРОФЕССИОНАЛЬНЫЕ РАЗМЕРЫ ИКОНОК ХЕДЕРА ===
+.q-header .q-icon,
+.q-toolbar .q-icon,
+.q-btn .q-icon,
+.q-icon.notranslate.material-icons {
+  font-size: 1.5rem !important;
+  color: white !important;
+  line-height: 1 !important;
+}
+
+// Специально для кнопок в хедере
+.q-header .q-btn .q-icon,
+.q-toolbar .q-btn .q-icon {
+  font-size: 1.4rem !important;
+  color: white !important;
+}
+
+// Исключение для кнопки фильтров
+.filters-btn .q-icon {
+  font-size: 1.1rem !important;
+}
+
 // === ГЛОБАЛЬНЫЕ СТИЛИ ===
 * {
   box-sizing: border-box;
@@ -525,6 +547,7 @@ body {
   transition: all var(--transition-normal) !important;
   position: relative;
   overflow: hidden;
+  min-height: 40px !important;
   
   &::before {
     content: '';
@@ -593,12 +616,25 @@ body {
   
   &.q-btn--fab {
     border-radius: var(--radius-full) !important;
-  box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg);
+    min-height: 56px !important;
+    min-width: 56px !important;
   
     &:hover {
       box-shadow: var(--shadow-xl);
       transform: translateY(-2px);
     }
+  }
+  
+  &.q-btn--dense {
+    min-height: 32px !important;
+    padding: 6px 12px !important;
+  }
+  
+  &.q-btn--small {
+    min-height: 28px !important;
+    padding: 4px 8px !important;
+    font-size: 0.875rem !important;
   }
 }
 
@@ -863,8 +899,11 @@ body {
     transition: all var(--transition-normal) !important;
     font-weight: var(--font-weight-medium) !important;
     text-transform: none !important;
+    min-height: 44px !important;
+    padding: 12px 20px !important;
+    font-size: 1rem !important;
         
-        &:hover {
+    &:hover {
       background: var(--primary-50) !important;
     }
     
@@ -872,6 +911,11 @@ body {
       background: var(--gradient-primary) !important;
       color: var(--text-inverse) !important;
       box-shadow: var(--shadow-md);
+    }
+    
+    .q-icon {
+      font-size: 1.2rem !important;
+      margin-right: 8px !important;
     }
   }
   
@@ -1288,8 +1332,14 @@ body {
 
 .gradient-btn {
   background: var(--gradient-primary) !important;
-  color: var(--text-inverse) !important;
+  color: white !important;
   border: none !important;
+  
+  .q-btn__content,
+  .block,
+  .q-icon {
+    color: white !important;
+  }
   
   &:hover {
     filter: brightness(1.1) !important;
@@ -1333,7 +1383,7 @@ body {
     content: '';
     width: 4px;
     height: 24px;
-    background: var(--gradient-primary);
+      background: var(--gradient-primary);
     border-radius: var(--radius-full);
   }
 }
@@ -1560,15 +1610,17 @@ body {
 // === СОВРЕМЕННЫЕ ТАБЫ В ХЕДЕРЕ ===
 .q-tabs {
   .q-tab {
-    color: rgba(255, 255, 255, 0.7) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
     font-weight: var(--font-weight-medium) !important;
     text-transform: none !important;
-    font-size: var(--font-size-base) !important;
+    font-size: 1rem !important;
     border-radius: var(--radius-lg);
     margin: 0 var(--spacing-xs);
     transition: all var(--transition-normal);
     position: relative;
     overflow: hidden;
+    min-height: 44px !important;
+    padding: 12px 20px !important;
     
     &::before {
       content: '';
@@ -1582,7 +1634,7 @@ body {
     }
     
     &:hover {
-      color: rgba(255, 255, 255, 0.9) !important;
+      color: rgba(255, 255, 255, 0.95) !important;
       background: rgba(255, 255, 255, 0.1);
       transform: translateY(-1px);
       
@@ -1596,6 +1648,11 @@ body {
       font-weight: var(--font-weight-semibold) !important;
       background: rgba(255, 255, 255, 0.2);
       box-shadow: var(--shadow-md);
+    }
+    
+    .q-icon {
+      font-size: 1.2rem !important;
+      margin-right: 8px !important;
     }
   }
   
@@ -1672,15 +1729,41 @@ body {
     line-height: var(--line-height-normal) !important;
   }
   
-  // Минимальные размеры для кликабельных элементов
-  .q-btn,
+  // Профессиональные размеры для кликабельных элементов
+  .q-btn {
+    min-height: 40px !important;
+    padding: 8px 16px !important;
+    
+    &.q-btn--dense {
+      min-height: 36px !important;
+      padding: 6px 12px !important;
+    }
+    
+    &.q-btn--small {
+      min-height: 32px !important;
+      padding: 4px 8px !important;
+    }
+  }
+  
   .q-chip,
   .q-tab,
   .q-item,
   a {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 40px;
+    min-width: 40px;
     touch-action: manipulation;
+  }
+  
+  // Профессиональные размеры иконок на мобильных
+  .q-header .q-icon,
+  .q-toolbar .q-icon,
+  .q-btn .q-icon {
+    font-size: 1.2rem !important;
+  }
+  
+  .q-tab .q-icon {
+    font-size: 1.1rem !important;
+    margin-right: 6px !important;
   }
   
   // Увеличение контрастности текста

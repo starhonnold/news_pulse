@@ -1,0 +1,765 @@
+// Темная тема для приложения "Пульс Новостей"
+// Dark Theme - Fixed Dark Mode
+// 2024 Modern Dark UI/UX Design System
+
+:root {
+  // === ОСНОВНАЯ ЦВЕТОВАЯ ПАЛИТРА (темная) ===
+  // Современные темные цвета с улучшенной контрастностью
+  --primary-color: #8b5cf6;
+  --primary-dark: #7c3aed;
+  --primary-light: #a78bfa;
+  --primary-50: #1e1b4b;
+  --primary-100: #312e81;
+  --primary-500: #8b5cf6;
+  --primary-600: #7c3aed;
+  --primary-700: #6d28d9;
+  --primary-900: #4c1d95;
+  
+  --secondary-color: #06b6d4;
+  --secondary-dark: #0891b2;
+  --secondary-light: #22d3ee;
+  --secondary-50: #0c4a6e;
+  --secondary-100: #155e75;
+  --secondary-500: #06b6d4;
+  --secondary-600: #0891b2;
+  
+  --accent-color: #f59e0b;
+  --accent-dark: #d97706;
+  --accent-light: #fbbf24;
+  --accent-50: #451a03;
+  --accent-100: #78350f;
+  --accent-500: #f59e0b;
+  
+  // === СТАТУСНЫЕ ЦВЕТА (темные) ===
+  --success-color: #10b981;
+  --success-light: #34d399;
+  --success-50: #064e3b;
+  --success-100: #065f46;
+  --success-500: #10b981;
+  --success-600: #059669;
+  
+  --warning-color: #f59e0b;
+  --warning-light: #fbbf24;
+  --warning-50: #451a03;
+  --warning-100: #78350f;
+  --warning-500: #f59e0b;
+  
+  --error-color: #ef4444;
+  --error-light: #f87171;
+  --error-50: #450a0a;
+  --error-100: #7f1d1d;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  
+  --info-color: #3b82f6;
+  --info-light: #60a5fa;
+  --info-50: #1e3a8a;
+  --info-100: #1e40af;
+  --info-500: #3b82f6;
+  
+  // === ТЕМНАЯ ТЕМА ===
+  --bg-primary: #0f172a;
+  --bg-main: #0f172a; // Основной фон приложения
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-quaternary: #475569;
+  --bg-card: #1e293b;
+  --bg-elevated: #334155;
+  --bg-overlay: rgba(15, 23, 42, 0.95);
+  
+  // === ТЕКСТОВАЯ ПАЛИТРА (темная) ===
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-quaternary: #94a3b8;
+  --text-disabled: #64748b;
+  --text-inverse: #0f172a;
+  
+  // === ГРАНИЦЫ (темные) ===
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-tertiary: #64748b;
+  --border-accent: #8b5cf6;
+  --border-focus: #8b5cf6;
+  
+  // === СОВРЕМЕННЫЕ ТЕНИ (темные) ===
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+  
+  // === СОВРЕМЕННЫЕ ГРАДИЕНТЫ (темные) ===
+  --gradient-primary: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #06b6d4 100%);
+  --gradient-secondary: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-error: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  --gradient-light: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  
+  // === РАДИУСЫ СКРУГЛЕНИЯ ===
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+  
+  // === ОТСТУПЫ ===
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+  --spacing-4xl: 40px;
+  --spacing-5xl: 48px;
+  
+  // === ТИПОГРАФИКА ===
+  --font-size-xs: 0.75rem;    // 12px
+  --font-size-sm: 0.875rem;   // 14px
+  --font-size-base: 1rem;     // 16px
+  --font-size-lg: 1.125rem;   // 18px
+  --font-size-xl: 1.25rem;    // 20px
+  --font-size-2xl: 1.5rem;    // 24px
+  --font-size-3xl: 1.875rem;  // 30px
+  --font-size-4xl: 2.25rem;   // 36px
+  
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+  
+  // === АНИМАЦИИ ===
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+  --transition-bounce: 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  // === Z-INDEX ===
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+}
+
+// === ПРИМЕНЕНИЕ ТЕМНОЙ ТЕМЫ К BODY ===
+body {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// === ПЕРЕОПРЕДЕЛЕНИЕ ДЛЯ ТЕМНОЙ ТЕМЫ ===
+.body--dark {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// Глобальное переопределение цвета текста для темной темы
+* {
+  color: var(--text-primary);
+}
+
+// === СОВРЕМЕННЫЕ КАРТОЧКИ (темные) ===
+.q-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// === СОВРЕМЕННЫЕ ПОЛЯ ВВОДА (темные) ===
+.q-field {
+  .q-field__control {
+    background: var(--bg-tertiary) !important;
+    border: 2px solid var(--border-primary) !important;
+    color: var(--text-primary) !important;
+    
+    &:hover {
+      border-color: var(--primary-color) !important;
+      background: var(--bg-elevated) !important;
+    }
+    
+    &:focus-within {
+      border-color: var(--border-focus) !important;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1) !important;
+      background: var(--bg-elevated) !important;
+    }
+  }
+  
+  .q-field__native {
+    color: var(--text-primary) !important;
+    
+    &::placeholder {
+      color: var(--text-tertiary) !important;
+    }
+  }
+  
+  .q-field__label {
+    color: var(--text-secondary) !important;
+  }
+  
+  .q-field__prefix,
+  .q-field__suffix {
+    color: var(--text-tertiary) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ КНОПКИ (темные) ===
+.q-btn {
+  color: var(--text-primary) !important;
+  
+  &.q-btn--standard {
+    background: var(--bg-elevated) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  &.q-btn--unelevated {
+    &.bg-primary {
+      background: var(--gradient-primary) !important;
+      color: var(--text-inverse) !important;
+    }
+  }
+  
+  &.q-btn--outline {
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    background: transparent;
+    
+    &:hover {
+      background: var(--primary-color);
+      color: var(--text-inverse);
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ ЧИПЫ (темные) ===
+.q-chip {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+  
+  &:hover {
+    background: var(--bg-elevated) !important;
+  }
+  
+  &.q-chip--selected {
+    background: var(--gradient-primary) !important;
+    color: var(--text-inverse) !important;
+    border-color: var(--primary-color) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ МЕНЮ (темные) ===
+.q-menu {
+  background: var(--bg-overlay) !important;
+  border: 1px solid var(--border-primary) !important;
+  
+  .q-list {
+    .q-item {
+      color: var(--text-primary) !important;
+      
+      &:hover {
+        background: var(--primary-50) !important;
+      }
+      
+      .q-item__label {
+        color: var(--text-primary) !important;
+      }
+      
+      .q-item-section {
+        color: var(--text-secondary) !important;
+      }
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ ДИАЛОГИ (темные) ===
+.q-dialog {
+  .q-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    color: var(--text-primary) !important;
+    
+    .q-card-section {
+      .text-h6 {
+        color: var(--text-primary) !important;
+      }
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ УВЕДОМЛЕНИЯ (темные) ===
+.q-notification {
+  background: var(--bg-overlay) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// === СОВРЕМЕННЫЕ ПРОГРЕСС-БАРЫ (темные) ===
+.q-linear-progress {
+  .q-linear-progress__track {
+    background: var(--bg-tertiary) !important;
+  }
+  
+  .q-linear-progress__model {
+    background: var(--gradient-primary) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ СПИННЕРЫ (темные) ===
+.q-spinner {
+  color: var(--primary-color) !important;
+}
+
+.q-spinner-dots {
+  .q-spinner-dot {
+    background: var(--primary-color) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ТАБЫ (темные) ===
+.q-tabs {
+  .q-tab {
+    color: var(--text-secondary) !important;
+    
+    &:hover {
+      background: var(--primary-50) !important;
+      color: var(--text-primary) !important;
+    }
+    
+    &.q-tab--active {
+      background: var(--gradient-primary) !important;
+      color: var(--text-inverse) !important;
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ РАЗДЕЛИТЕЛИ (темные) ===
+.q-separator {
+  background: var(--border-primary) !important;
+}
+
+// === СОВРЕМЕННЫЕ ТУЛТИПЫ (темные) ===
+.q-tooltip {
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+}
+
+// === СОВРЕМЕННЫЕ САЙДБАРЫ (темные) ===
+.q-drawer {
+  background: var(--bg-secondary) !important;
+  border-right: 1px solid var(--border-primary);
+  
+  .q-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+  }
+  
+  .q-card-section {
+    .text-h6 {
+      color: var(--text-primary);
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ НОВОСТНЫЕ КАРТОЧКИ (темные) ===
+.news-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  
+  .news-title {
+    color: var(--text-primary);
+  }
+  
+  .news-description {
+    color: var(--text-secondary);
+  }
+  
+  .news-meta {
+    .source-name {
+      color: var(--primary-color);
+    }
+    
+    .publish-time {
+      color: var(--text-tertiary);
+    }
+  }
+  
+  .news-tags {
+    .q-chip {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-primary);
+      
+      &:hover {
+        background: var(--bg-elevated);
+      }
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ КАРТОЧКИ ПУЛЬСОВ (темные) ===
+.pulse-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  
+  .text-h6 {
+    color: var(--text-primary) !important;
+  }
+  
+  .text-body2 {
+    color: var(--text-secondary) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ СТАТУСНЫЕ КАРТОЧКИ (темные) ===
+.status-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+// === СОВРЕМЕННЫЕ КАРТОЧКИ ЗАГРУЗКИ (темные) ===
+.loading-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+// === СОВРЕМЕННЫЕ ПОЛЯ ВВОДА (темные) ===
+.modern-input {
+  .q-field__control {
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-primary);
+    
+    &:hover {
+      border-color: var(--primary-color);
+      background: var(--bg-elevated);
+    }
+    
+    &:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+  }
+  
+  .q-field__native {
+    color: var(--text-primary);
+    
+    &::placeholder {
+      color: var(--text-tertiary);
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ КАРТОЧКИ (темные) ===
+.modern-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// === СОВРЕМЕННЫЕ СТРАНИЦЫ (темные) ===
+.modern-page {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+// === СОВРЕМЕННЫЕ ЗАГОЛОВКИ (темные) ===
+.modern-section-title {
+  color: var(--text-primary) !important;
+}
+
+// === СОВРЕМЕННЫЕ СКРОЛЛБАРЫ (темные) ===
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  
+  &:hover {
+    background: var(--primary-color);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-tertiary);
+}
+
+// === СОВРЕМЕННЫЕ ПУСТЫЕ СОСТОЯНИЯ (темные) ===
+.empty-state {
+  .empty-icon {
+    color: var(--text-disabled);
+  }
+  
+  .empty-title {
+    color: var(--text-secondary);
+  }
+  
+  .empty-subtitle {
+    color: var(--text-tertiary);
+  }
+}
+
+// === СОВРЕМЕННЫЙ ХЕДЕР (темный) ===
+.q-header {
+  background: var(--bg-overlay) !important;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary) !important;
+}
+
+// Темно-синий хедер с современными эффектами (темная версия)
+.dark-blue-header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--text-inverse) !important;
+  
+  .q-toolbar-title {
+    color: var(--text-inverse) !important;
+    
+    .gradient-text {
+      color: var(--text-inverse) !important;
+      background: none !important;
+      -webkit-background-clip: unset !important;
+      -webkit-text-fill-color: var(--text-inverse) !important;
+      background-clip: unset !important;
+    }
+    
+    span {
+      color: var(--text-inverse) !important;
+    }
+  }
+  
+  .search-input {
+    .q-field__control {
+      background: rgba(255, 255, 255, 0.1) !important;
+      border: 2px solid rgba(255, 255, 255, 0.2) !important;
+      
+      &:hover {
+        border-color: rgba(255, 255, 255, 0.4) !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+      }
+      
+      &:focus-within {
+        border-color: rgba(255, 255, 255, 0.6) !important;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1) !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+      }
+    }
+    
+    .q-field__native {
+      color: var(--text-inverse) !important;
+      
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.7) !important;
+      }
+    }
+    
+    .q-field__prefix,
+    .q-field__suffix {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+  }
+  
+  .q-btn {
+    color: var(--text-inverse) !important;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .q-icon {
+      color: var(--text-inverse) !important;
+    }
+  }
+  
+  // Белый цвет для всех элементов хедера
+  * {
+    color: var(--text-inverse) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ТАБЫ В ХЕДЕРЕ (темные) ===
+.q-tabs {
+  .q-tab {
+    color: rgba(255, 255, 255, 0.8) !important;
+    
+    &:hover {
+      color: rgba(255, 255, 255, 0.95) !important;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    &.q-tab--active {
+      color: var(--text-inverse) !important;
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .q-icon {
+      color: inherit !important;
+    }
+  }
+  
+  .q-tab__indicator {
+    background: var(--text-inverse) !important;
+  }
+}
+
+// === СПЕЦИАЛЬНЫЕ ЭФФЕКТЫ (темные) ===
+.create-pulse-btn {
+  background: var(--gradient-primary) !important;
+  color: var(--text-inverse) !important;
+  
+  .q-icon,
+  .material-icons {
+    color: var(--text-inverse) !important;
+  }
+}
+
+// Дополнительный класс для принудительного белого цвета
+.white-content {
+  &,
+  & *,
+  & .q-btn__content,
+  & .q-btn__content *,
+  & .q-icon,
+  & .material-icons,
+  & span {
+    color: var(--text-inverse) !important;
+  }
+}
+
+// === ПЕРЕОПРЕДЕЛЕНИЕ ДЛЯ ТЕМНО-СИНЕГО ХЕДЕРА ===
+.dark-blue-header .gradient-text {
+  color: var(--text-inverse) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--text-inverse) !important;
+  background-clip: unset !important;
+}
+
+// === СОВРЕМЕННЫЕ БЭДЖИ (темные) ===
+.q-badge {
+  &.bg-red {
+    background: var(--gradient-error) !important;
+  }
+  
+  &.bg-green {
+    background: var(--gradient-success) !important;
+  }
+  
+  &.bg-blue {
+    background: var(--gradient-primary) !important;
+  }
+  
+  &.bg-orange {
+    background: var(--gradient-warning) !important;
+  }
+}
+
+// === СОВРЕМЕННЫЕ ИНДИКАТОРЫ НОВОСТЕЙ (темные) ===
+.news-indicator {
+  .q-badge {
+    &.bg-red {
+      background: var(--gradient-error);
+    }
+    
+    &.bg-green {
+      background: var(--gradient-success);
+    }
+    
+    &.bg-blue {
+      background: var(--gradient-primary);
+    }
+  }
+}
+
+// === СОВРЕМЕННЫЕ УТИЛИТЫ (темные) ===
+.text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-effect {
+  background: var(--bg-overlay);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-lg);
+}
+
+.neon-glow {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  animation: neonPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes neonPulse {
+  from {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  }
+  to {
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
+  }
+}
+
+// === АДАПТИВНЫЕ СТИЛИ ДЛЯ ТЕМНОЙ ТЕМЫ ===
+@media (max-width: 599px) {
+  // Улучшение читаемости текста на мобильных в темной теме
+  body {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  // Увеличение контрастности текста для темной темы
+  .text-grey-7,
+  .text-grey-8 {
+    color: var(--text-secondary) !important;
+  }
+  
+  // Улучшение фокуса для доступности в темной теме
+  *:focus-visible {
+    outline: 2px solid var(--primary-color) !important;
+    outline-offset: 2px !important;
+  }
+}
+
+// === ЗАВЕРШЕНИЕ ТЕМНОЙ ТЕМЫ ===
+// Все современные стили применены к компонентам для темной темы

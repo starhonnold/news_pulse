@@ -5,10 +5,11 @@
 <script setup>
 import { Dark } from 'quasar'
 
-// Включаем светлую тему
-Dark.set(false)
+// Включаем темную тему по умолчанию
+Dark.set(true)
 </script>
 
 <style>
 @import './css/lato-fonts.css';
+@import './css/global.scss';
 </style>

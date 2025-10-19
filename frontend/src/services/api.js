@@ -41,6 +41,16 @@ export const pulseService = {
     return createRequest({ method: 'GET', url: '/pulses' })
   },
 
+  // Алиас для совместимости
+  getPulses() {
+    return this.getUserPulses()
+  },
+
+  // Получить пульс по ID
+  getPulseById(id) {
+    return createRequest({ method: 'GET', url: `/pulses/${id}` })
+  },
+
   // Создать новый пульс
   createPulse(pulseData) {
     return createRequest({ method: 'POST', url: '/pulses', data: pulseData })

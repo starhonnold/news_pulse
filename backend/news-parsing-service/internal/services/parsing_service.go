@@ -421,8 +421,8 @@ func (s *ParsingService) processItems(ctx context.Context, items []models.Parsed
 				textForClassification = textForClassification[:5000]
 			}
 
-			// Фиксированный порог confidence 65% - так как теперь всегда есть полный контекст
-			minConfidence := 0.65
+			// Снижаем порог confidence до 30% для лучшей классификации
+			minConfidence := 0.30
 
 			s.logger.WithFields(logrus.Fields{
 				"title":              truncateForLog(item.Title, 50),

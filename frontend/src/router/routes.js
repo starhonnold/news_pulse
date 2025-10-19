@@ -3,8 +3,10 @@ const routes = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue') },
-      { path: 'news', component: () => import('pages/NewsPage.vue') }
+      { path: '', component: () => import('pages/NewsPage.vue') },
+      { path: 'news', redirect: '/' }, // Редирект с /news на главную
+      { path: 'pulses', component: () => import('pages/IndexPage.vue') },
+      { path: 'pulse/:id', component: () => import('pages/PulsePage.vue') }
     ],
   },
 

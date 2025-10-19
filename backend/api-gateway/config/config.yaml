@@ -12,7 +12,7 @@ server:
 services:
   news_parsing:
     name: "News Parsing Service"
-    url: "http://localhost:8082"
+    url: "http://localhost:8081"
     health_endpoint: "/health"
     timeout: 30s
     retry_attempts: 3

@@ -4,33 +4,29 @@
     :target="external ? '_blank' : undefined"
     :rel="external ? 'noopener noreferrer' : undefined"
     :class="[
-      'essential-link',
+      'icon-link',
       {
-        'essential-link--external': external,
-        'essential-link--hover': hover,
-        'essential-link--muted': muted,
-        'essential-link--accent-border': accentBorder
+        'icon-link--external': external,
+        'icon-link--hover': hover,
+        'icon-link--muted': muted,
+        'icon-link--accent-border': accentBorder
       }
     ]"
     @click="handleClick"
   >
     <q-icon
-      v-if="icon"
       :name="icon"
       :size="iconSize"
-      class="essential-link__icon"
+      class="icon-link__icon"
     />
     
-    <div class="essential-link__content">
-      <div class="essential-link__title">{{ title }}</div>
-      <div v-if="caption" class="essential-link__caption">{{ caption }}</div>
-    </div>
+    <span v-if="label" class="icon-link__label">{{ label }}</span>
     
     <q-icon
       v-if="external"
       name="open_in_new"
-      :size="iconSize"
-      class="essential-link__external-icon"
+      :size="externalIconSize"
+      class="icon-link__external-icon"
     />
   </a>
 </template>
@@ -39,21 +35,17 @@
 import { defineProps, defineEmits } from 'vue'
 
 defineProps({
-  title: {
+  icon: {
     type: String,
     required: true
   },
-  caption: {
+  label: {
     type: String,
     default: ''
   },
   link: {
     type: String,
     default: '#'
-  },
-  icon: {
-    type: String,
-    default: ''
   },
   external: {
     type: Boolean,
@@ -74,6 +66,10 @@ defineProps({
   iconSize: {
     type: String,
     default: '20px'
+  },
+  externalIconSize: {
+    type: String,
+    default: '14px'
   }
 })
 
@@ -85,18 +81,19 @@ const handleClick = (event) => {
 </script>
 
 <style lang="scss" scoped>
-.essential-link {
-  display: flex;
+.icon-link {
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius-md);
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
   text-decoration: none;
   color: var(--text-primary);
   transition: all var(--transition-normal);
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
+  min-height: 32px;
   
   // Базовые стили
   &__icon {
@@ -105,25 +102,13 @@ const handleClick = (event) => {
     transition: all var(--transition-normal);
   }
   
-  &__content {
-    flex: 1;
-    min-width: 0;
-  }
-  
-  &__title {
-    font-size: var(--font-size-base);
+  &__label {
+    font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: var(--text-primary);
-    line-height: var(--line-height-snug);
-    transition: all var(--transition-normal);
-  }
-  
-  &__caption {
-    font-size: var(--font-size-sm);
-    color: var(--text-tertiary);
     line-height: var(--line-height-normal);
-    margin-top: 2px;
     transition: all var(--transition-normal);
+    white-space: nowrap;
   }
   
   &__external-icon {
@@ -137,23 +122,19 @@ const handleClick = (event) => {
   &--hover:hover {
     background: var(--bg-tertiary);
     border-color: var(--border-accent);
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.1);
-    transform: translateX(2px);
+    box-shadow: 0 0 6px rgba(139, 92, 246, 0.1);
+    transform: translateY(-1px);
     
-    .essential-link__icon {
+    .icon-link__icon {
       color: var(--accent-color);
       transform: scale(1.1);
     }
     
-    .essential-link__title {
+    .icon-link__label {
       color: var(--text-primary);
     }
     
-    .essential-link__caption {
-      color: var(--text-secondary);
-    }
-    
-    .essential-link__external-icon {
+    .icon-link__external-icon {
       opacity: 1;
       color: var(--text-tertiary);
     }
@@ -161,11 +142,11 @@ const handleClick = (event) => {
   
   // Внешняя ссылка
   &--external {
-    .essential-link__external-icon {
+    .icon-link__external-icon {
       opacity: 0.5;
     }
     
-    &:hover .essential-link__external-icon {
+    &:hover .icon-link__external-icon {
       opacity: 1;
     }
   }
@@ -184,7 +165,7 @@ const handleClick = (event) => {
     border-color: var(--accent-color);
     
     &:hover {
-      box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.2);
     }
   }
   
@@ -197,16 +178,29 @@ const handleClick = (event) => {
 
 // Адаптивность
 @media (max-width: 768px) {
-  .essential-link {
-    padding: var(--spacing-sm);
-    gap: var(--spacing-xs);
+  .icon-link {
+    padding: var(--spacing-xs);
+    min-height: 36px;
     
-    &__title {
-      font-size: var(--font-size-sm);
+    &__label {
+      font-size: var(--font-size-xs);
     }
     
-    &__caption {
-      font-size: var(--font-size-xs);
+    &__external-icon {
+      font-size: 12px;
+    }
+  }
+}
+
+// Компактная версия для маленьких экранов
+@media (max-width: 480px) {
+  .icon-link {
+    &__label {
+      display: none;
+    }
+    
+    &__external-icon {
+      display: none;
     }
   }
 }

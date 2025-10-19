@@ -149,7 +149,7 @@ fasttext:
   enabled: true  # ВКЛЮЧЕНО - работает с полным контентом новости
   service_url: "http://news-classificator-service:8085"
   timeout: "30s"
-  min_confidence: 0.15
+  min_confidence: 0.30
   use_fallback: true  # Используем WeightedClassifier как fallback
 
 # Настройки для разных окружений
