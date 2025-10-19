@@ -311,19 +311,38 @@ watch(selectAllCategories, (newValue) => {
   }
 })
 
+// Watch для отслеживания изменений в поисковом запросе
+watch(searchQuery, () => {
+  console.log('searchQuery changed to:', searchQuery.value)
+  filterPulses()
+})
+
 // Методы для поиска
 const filterPulses = () => {
+  console.log('filterPulses called, searchQuery:', searchQuery.value)
+  console.log('pulses.value:', pulses.value)
+  
   if (!searchQuery.value.trim()) {
     filteredPulses.value = [...pulses.value]
+    console.log('Empty search, showing all pulses:', filteredPulses.value.length)
     return
   }
   
   const query = searchQuery.value.toLowerCase().trim()
-  filteredPulses.value = pulses.value.filter(pulse => 
-    pulse.name.toLowerCase().includes(query) ||
-    (pulse.description && pulse.description.toLowerCase().includes(query)) ||
-    (pulse.keywords && pulse.keywords.toLowerCase().includes(query))
-  )
+  console.log('Searching for:', query)
+  
+  const filtered = pulses.value.filter(pulse => {
+    const nameMatch = pulse.name.toLowerCase().includes(query)
+    const descMatch = pulse.description && pulse.description.toLowerCase().includes(query)
+    const keywordsMatch = pulse.keywords && pulse.keywords.toLowerCase().includes(query)
+    
+    console.log(`Pulse "${pulse.name}": name=${nameMatch}, desc=${descMatch}, keywords=${keywordsMatch}`)
+    
+    return nameMatch || descMatch || keywordsMatch
+  })
+  
+  filteredPulses.value = filtered
+  console.log('Filtered pulses:', filteredPulses.value.length, filteredPulses.value.map(p => p.name))
 }
 
 const clearSearch = () => {
